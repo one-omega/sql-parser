@@ -1,40 +1,7 @@
 %{
-//记号类别
-#define ID 0
-#define NUMBER 1
-#define CREATE 2
-#define DATABASE 3
-#define SHOW 4
-#define DATABASES 5
-#define DROP 6
-#define USE 7
-#define TABLE 8
-#define INSERT 9
-#define INTO 10
-#define VALUES 11
-#define SELECT 12
-#define FROM 13
-#define WHERE 14
-#define AND 15
-#define OR 16
-#define NOT 17
-#define DELETE 18
-#define UPDATE 19
-#define SET 20
-#define CHAR 21
-#define INT 22
-
-// 符号 1xx
-#define COMMA 100
-#define LPAREN 101
-#define RPAREN 102
-#define SEMICOLON 103
-#define MORE 104
-#define LESS 105
-#define ERUAL 106
-#define NOT_ERUAL 107
-#define STAR 108
-#define SINGLE_QUOTE 109
+# include "xdsql.tab.h"
+extern int yyerror(const char *, ...);
+int yylval;
 %}
 
 /* declarations section */
@@ -43,7 +10,8 @@ digit	[0-9]
 digits	{digit}+
 optional_fraction	("."{digits})?
 optional_exponent	(E[+-]?{digits})?
-identifier ({letter}|_)(({letter}|{digit}|_)*) 
+identifier ({letter}|_)(({letter}|{digit}|_)*)
+string '([^']*)'
 create create
 database database
 show show
@@ -51,6 +19,7 @@ databases databases
 drop drop
 use use
 table table
+tables tables
 insert insert
 into into
 values values
@@ -71,87 +40,91 @@ int int
 %%
 
 {create}					{
-										printf("识别CREATE");
+										printf("识别CREATE\n");
 										return CREATE;
 									}
 {database}				{
-										printf("识别DATABASE");
+										printf("识别DATABASE\n");
 										return DATABASE;
 									}
 {show}						{
-										printf("识别SHOW");
+										printf("识别SHOW\n");
 										return SHOW;
 									}
 {databases}				{
-										printf("识别DATABASES");
+										printf("识别DATABASES\n");
 										return DATABASES;
 									}
 {drop}						{
-										printf("识别DROP");
+										printf("识别DROP\n");
 										return DROP;
 									}
 {use}							{
-										printf("识别USE");
+										printf("识别USE\n");
 										return USE;
 									}
 {table}						{
-										printf("识别TABLE");
+										printf("识别TABLE\n");
 										return TABLE;
 									}
+{tables}						{
+										printf("识别TABLES\n");
+										return TABLES;
+									}
 {insert}					{
-										printf("识别INSERT");
+										printf("识别INSERT\n");
 										return INSERT;
 									}
 {into}						{
-										printf("识别INTO");
+										printf("识别INTO\n");
 										return INTO;
 									}
 {values}					{
-										printf("识别VALUES");
+										printf("识别VALUES\n");
 										return VALUES;
 									}
 {select}					{
-										printf("识别SELECT");
+										printf("识别SELECT\n");
 										return SELECT;
 									}
 {from}						{
-										printf("识别FROM");
+										printf("识别FROM\n");
 										return FROM;
 									}
 {where}						{
-										printf("识别WHERE");
+										printf("识别WHERE\n");
 										return WHERE;
 									}
 {and}							{
-										printf("识别AND");
+										printf("识别AND\n");
 										return AND;
 									}
 {or}							{
-										printf("识别OR");
+										printf("识别OR\n");
 										return OR;
 									}
 {not}							{
-										printf("识别NOT");
+										printf("识别NOT\n");
 										return NOT;
 									}
 {delete}					{
-										printf("识别DELETE");
+										printf("识别DELETE\n");
 										return DELETE;
 									}
 {update}					{
-										printf("识别UPDATE");
+										printf("识别UPDATE\n");
 										return UPDATE;
 									}
 {set}							{
-										printf("识别SET");
+										printf("识别SET\n");
 										return SET;
 									}
 {char}						{
-										printf("识别CHAR");
+										printf("识别CHAR\n");
 										return CHAR;
 									}
 {int}							{
-										printf("识别INT");
+										printf("识别INT\n");
 										return INT;
 									}
 
@@ -161,30 +134,27 @@ int int
 ";" { printf("识别分号\n"); return SEMICOLON; }
 ">" { printf("识别大于号\n"); return MORE; }
 "<" { printf("识别小于号\n"); return LESS; }
-"=" { printf("识别等于号\n"); return ERUAL; }
-"!=" { printf("识别不等于号\n"); return NOT_ERUAL; }
-"*" { printf("识别星号\n"); return STAR; }
+"=" { printf("识别等于号\n"); return EQUAL; }
+"!=" { printf("识别不等于号\n"); return NOT_EQUAL; }
 "'" { printf("识别单引号\n"); return SINGLE_QUOTE; }
+"#" { printf("识别#\n"); return SELECT_ALL; }
 
 
 {identifier}                                    {
                                                     printf("识别标识符%s：长度为%d\n", yytext, yyleng);
-                                                    return ID;
+                                                    return IDENTIFIER;
+                                                }
+
+{string}                                    	{
+                                                    printf("识别字符串%s：长度为%d\n", yytext, yyleng);
+                                                    return STRING;
                                                 }
 
 {digits}{optional_fraction}{optional_exponent}  {
-                                                    printf("识别数字%s：长度为%d\n", yytext, yyleng);
+                                                    printf("识别数字%s\n", yytext);
                                                     return NUMBER;
                                                 }
 
 [ \t\n] ; /* 匹配空格、制表符、换行符等空白字符 */
 
 %%
-
-// programs section
-
-int main(void)
-{
-    printf("词法分析成功，返回记号类别为%d\n", yylex());
-    return 0;
-}

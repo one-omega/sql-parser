@@ -2,22 +2,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+int yyerror(const char *s, ...);
+extern int yylex();
+extern int yyparse();
+void printf_red(const char *s)
+{
+    printf("\033[0m\033[1;31m%s\033[0m", s);
+}
 %}
 
-%token CREATE DATABASE
-%token SHOW DATABASES
-%token DROP DATABASE
-%token USE DATABASE
-%token CREATE TABLE
-%token SHOW TABLES
-%token DROP TABLE
-%token INSERT INTO VALUES
-%token SELECT FROM WHERE
+%token CREATE SHOW DROP USE INSERT SELECT DELETE UPDATE SET INTO FROM WHERE DATABASE DATABASES TABLE TABLES VALUES
+%token IDENTIFIER NUMBER STRING SELECT_ALL
+%token INT CHAR
+%token SINGLE_QUOTE COMMA LPAREN RPAREN SEMICOLON
 %token OR
 %token AND
+%token EQUAL NOT_EQUAL
+%token MORE LESS
 %token NOT
-%token IDENTIFIER NUMBER STRING
-%token <value> INT CHAR
+
+%left OR
+%left AND
+%right NOT
 
 %left '+' '-'
 %left '*' '/'
@@ -26,7 +32,7 @@
 %%
 
 stmt_list: /* empty */
-         | stmt_list stmt ';'
+         | stmt_list stmt SEMICOLON
          ;
 
 stmt: create_db_stmt
@@ -44,117 +50,139 @@ stmt: create_db_stmt
 
 create_db_stmt: CREATE DATABASE IDENTIFIER
                {
-                   printf("Create database %s\n", $3);
+                    printf_red("Create database\n");
                }
                ;
 
 drop_db_stmt: DROP DATABASE IDENTIFIER
             {
-                printf("Drop database %s\n", $3);
+                printf_red("Drop database\n");
             }
             ;
 
-use_db_stmt: USE DATABASE IDENTIFIER
+use_db_stmt: USE IDENTIFIER
            {
-               printf("Use database %s\n", $3);
+               printf_red("Use database\n");
            }
            ;
 
 show_dbs_stmt: SHOW DATABASES
              {
-                 printf("Show databases\n");
+                 printf_red("Show databases\n");
              }
              ;
 
-create_table_stmt: CREATE TABLE IDENTIFIER '(' column_def_list ')'
+create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
                   {
-                      printf("Create table %s with columns:\n", $3);
-                      $$ = $3;
+                      printf_red("Create table with columns\n");
                   }
                   ;
 
 column_def_list: column_def
-               | column_def_list ',' column_def
+               | column_def_list COMMA column_def
                ;
 
-column_def: IDENTIFIER CHAR '(' INT ')'
+column_def: IDENTIFIER CHAR LPAREN NUMBER RPAREN
           {
-              printf("  %s CHAR(%d)\n", $1, $4);
+              printf_red("CHAR COLUMN\n");
           }
           | IDENTIFIER INT
           {
-              printf("  %s INT\n", $1);
+              printf_red("INT COLUMN\n");
           }
           ;
 
 drop_table_stmt: DROP TABLE IDENTIFIER
                 {
-                    printf("Drop table %s\n", $3);
+                    printf_red("Drop table\n");
                 }
                 ;
 
 show_tables_stmt: SHOW TABLES
                  {
-                     printf("Show tables\n");
+                     printf_red("Show tables\n");
                  }
                  ;
 
-insert_stmt: INSERT INTO IDENTIFIER '(' col_name_list ')' VALUES '(' expr_list ')'
+insert_stmt: INSERT INTO IDENTIFIER LPAREN identifier_list RPAREN VALUES LPAREN term_list RPAREN
             {
-                printf("Insert into %s with values:\n", $3);
+                printf_red("Insert into with values\n");
+            }
+            | INSERT INTO IDENTIFIER VALUES LPAREN term_list RPAREN
+            {
+                printf_red("Insert into with all values\n");
             }
             ;
 
-col_name_list: IDENTIFIER
-             | col_name_list ',' IDENTIFIER
+identifier_list: IDENTIFIER
+             | identifier_list COMMA IDENTIFIER
              ;
 
-expr_list: expr
-         | expr_list ',' expr
-         ;
-
-expr: NUMBER
-    | STRING
-    | IDENTIFIER
-    ;
-
-select_stmt: SELECT select_list FROM IDENTIFIER where_clause
+select_stmt: SELECT select_list FROM identifier_list where_clause
             {
-                printf("Select from %s with columns:\n", $4);
+                printf_red("Select from with columns\n");
             }
             ;
 
-select_list: '*'
-           | select_list ',' IDENTIFIER
+select_list: SELECT_ALL
+           | term_list
            ;
 
+term: NUMBER
+    | STRING
+    | IDENTIFIER
+
+expr: term
+    | term EQUAL term
+    | term NOT_EQUAL term
+    | term MORE term
+    | term LESS term
+    ;
+
+term_list: term
+         | term_list COMMA term
+         ;
+
+expr_list: expr
+         | expr_list AND expr_list
+         | expr_list OR expr_list
+         | NOT expr_list
+         | LPAREN expr_list RPAREN
+         ;
+
 where_clause: /* empty */
-            | WHERE expr
+            | WHERE expr_list
+            {
+                printf_red("where clause\n");
+            }
             ;
 
 delete_stmt: DELETE FROM IDENTIFIER where_clause
             {
-                printf("Delete from %s\n", $3);
+                printf_red("Delete from\n");
             }
             ;
 
 update_stmt: UPDATE IDENTIFIER SET update_list where_clause
             {
-                printf("Update table %s with values:\n", $2);
+                printf_red("Update table with values\n");
             }
             ;
 
-update_list: IDENTIFIER '=' expr
-           | update_list ',' IDENTIFIER '=' expr
+update_list: IDENTIFIER EQUAL term
+           | update_list COMMA IDENTIFIER EQUAL term
            ;
 
 %%
-
-int main(void)
+int main()
 {
-	return yyparse();
+    printf("> "); 
+    yyparse();
+    return 0;
 }
 
-void yyerror(char *s){
-   printf("error:%s\n", s);
+int yyerror(const char *s, ...)
+{
+    printf_red(s);
+    return -1;
 }

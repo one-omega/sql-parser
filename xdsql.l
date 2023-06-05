@@ -1,7 +1,6 @@
 %{
 # include "xdsql.tab.h"
 extern int yyerror(const char *, ...);
-int yylval;
 %}
 
 /* declarations section */
@@ -40,35 +39,35 @@ int int
 %%
 
 {create}					{
-										printf("识别CREATE\n");
+										// printf("识别CREATE\n");
 										return CREATE;
 									}
 {database}				{
-										printf("识别DATABASE\n");
+										// printf("识别DATABASE\n");
 										return DATABASE;
 									}
 {show}						{
-										printf("识别SHOW\n");
+										// printf("识别SHOW\n");
 										return SHOW;
 									}
 {databases}				{
-										printf("识别DATABASES\n");
+										// printf("识别DATABASES\n");
 										return DATABASES;
 									}
 {drop}						{
-										printf("识别DROP\n");
+										// printf("识别DROP\n");
 										return DROP;
 									}
 {use}							{
-										printf("识别USE\n");
+										// printf("识别USE\n");
 										return USE;
 									}
 {table}						{
-										printf("识别TABLE\n");
+										// printf("识别TABLE\n");
 										return TABLE;
 									}
 {tables}						{
-										printf("识别TABLES\n");
+										// printf("识别TABLES\n");
 										return TABLES;
 									}
 {insert}					{
@@ -119,19 +118,33 @@ int int
 										printf("识别SET\n");
 										return SET;
 									}
-{char}						{
-										printf("识别CHAR\n");
-										return CHAR;
-									}
-{int}							{
-										printf("识别INT\n");
-										return INT;
-									}
+{char} {
+	// printf("识别CHAR\n");
+	yylval.intval = 0;
+	return CHAR;
+}
+{int} {
+	// printf("识别INT\n");
+	yylval.intval = 1;
+	return INT;
+}
 
-"," { printf("识别逗号\n"); return COMMA; }
-"(" { printf("识别左括号\n"); return LPAREN; }
-")" { printf("识别右括号\n"); return RPAREN; }
-";" { printf("识别分号\n"); return SEMICOLON; }
+"," {
+	// printf("识别逗号\n");
+	return COMMA;
+}
+"(" {
+	// printf("识别左括号\n");
+	return LPAREN;
+}
+")" {
+	// printf("识别右括号\n");
+	return RPAREN;
+}
+";" {
+	// printf("识别分号\n");
+	return SEMICOLON;
+}
 ">" { printf("识别大于号\n"); return MORE; }
 "<" { printf("识别小于号\n"); return LESS; }
 "=" { printf("识别等于号\n"); return EQUAL; }
@@ -140,20 +153,25 @@ int int
 "#" { printf("识别#\n"); return SELECT_ALL; }
 
 
-{identifier}                                    {
-                                                    printf("识别标识符%s：长度为%d\n", yytext, yyleng);
-                                                    return IDENTIFIER;
-                                                }
+{identifier} {
+	yylval.strval = strdup(yytext);
+	// printf("识别标识符%s：长度为%d\n", yytext, yyleng);
+	return IDENTIFIER;
+}
 
-{string}                                    	{
-                                                    printf("识别字符串%s：长度为%d\n", yytext, yyleng);
-                                                    return STRING;
-                                                }
+{string} {
+	yylval.strval = strdup(yytext);
+	yylval.strval=(char *)(yylval.strval+1);
+	yylval.strval[strlen(yylval.strval)-1]='\0';
+	// printf("识别字符串%s：长度为%d\n", yytext, yyleng);
+	return STRING;
+}
 
 {digits}{optional_fraction}{optional_exponent}  {
-                                                    printf("识别数字%s\n", yytext);
-                                                    return NUMBER;
-                                                }
+	yylval.dval = atof(yytext);
+	// printf("识别数字%s\n", yytext);
+	return NUMBER;
+}
 
 [ \t\n] ; /* 匹配空格、制表符、换行符等空白字符 */
 

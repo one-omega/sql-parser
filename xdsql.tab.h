@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.3.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +31,9 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
+
 #ifndef YY_YY_XDSQL_TAB_H_INCLUDED
 # define YY_YY_XDSQL_TAB_H_INCLUDED
 /* Debug traces.  */
@@ -45,29 +49,29 @@ extern int yydebug;
 # define YYTOKENTYPE
   enum yytokentype
   {
-    CREATE = 258,
-    SHOW = 259,
-    DROP = 260,
-    USE = 261,
-    INSERT = 262,
-    SELECT = 263,
-    DELETE = 264,
-    UPDATE = 265,
-    SET = 266,
-    INTO = 267,
-    FROM = 268,
-    WHERE = 269,
-    DATABASE = 270,
-    DATABASES = 271,
-    TABLE = 272,
-    TABLES = 273,
-    VALUES = 274,
-    IDENTIFIER = 275,
-    NUMBER = 276,
-    STRING = 277,
-    SELECT_ALL = 278,
-    INT = 279,
-    CHAR = 280,
+    IDENTIFIER = 258,
+    STRING = 259,
+    NUMBER = 260,
+    CHAR = 261,
+    INT = 262,
+    CREATE = 263,
+    SHOW = 264,
+    DROP = 265,
+    USE = 266,
+    INSERT = 267,
+    SELECT = 268,
+    DELETE = 269,
+    UPDATE = 270,
+    SET = 271,
+    INTO = 272,
+    FROM = 273,
+    WHERE = 274,
+    DATABASE = 275,
+    DATABASES = 276,
+    TABLE = 277,
+    TABLES = 278,
+    VALUES = 279,
+    SELECT_ALL = 280,
     SINGLE_QUOTE = 281,
     COMMA = 282,
     LPAREN = 283,
@@ -79,14 +83,28 @@ extern int yydebug;
     NOT_EQUAL = 289,
     MORE = 290,
     LESS = 291,
-    NOT = 292,
-    UMINUS = 293
+    NOT = 292
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef int YYSTYPE;
+
+union YYSTYPE
+{
+#line 67 "xdsql.y" /* yacc.c:1921  */
+
+    int intval;
+    double dval;
+    char* strval;
+    struct CreateField *create_field; //字段定义
+    struct CreateFields *create_fields; //字段定义列表
+    struct CreateTable *create_table; //整个create语句
+
+#line 105 "xdsql.tab.h" /* yacc.c:1921  */
+};
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif

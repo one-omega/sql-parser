@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.3.2.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,11 +41,14 @@
    define necessary library symbols; they are noted "INFRINGES ON
    USER NAME SPACE" below.  */
 
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
+
 /* Identify Bison output.  */
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.0.4"
+#define YYBISON_VERSION "3.3.2"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -61,13 +65,36 @@
 
 
 
-/* Copy the first part of user declarations.  */
-#line 1 "xdsql.y" /* yacc.c:339  */
+/* First part of user prologue.  */
+#line 1 "xdsql.y" /* yacc.c:337  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <ctype.h>
+#include <dirent.h>
+#define true 1
+#define false 0
 int yyerror(const char *s, ...);
+
+/*
+db 相关函数
+*/
+void create_db(char* dbname);
+void drop_db(char* dbname);
+void show_db();
+void use_db(char* dbname);
+int check_use_db();
+
+/*
+工具函数
+*/
+void remove_directory(const char* path);
+int check_file_exists(const char *filepath);
+void create_file(const char *filepath);
+
 extern int yylex();
 extern int yyparse();
 void printf_red(const char *s)
@@ -75,13 +102,46 @@ void printf_red(const char *s)
     printf("\033[0m\033[1;31m%s\033[0m", s);
 }
 
-#line 79 "xdsql.tab.c" /* yacc.c:339  */
+/*
+一次数据库连接的信息
+*/
+typedef struct Session {
+    char* db;
+} Session;
+Session session;
 
+/*
+create table sql
+*/
+typedef struct CreateField {
+    char *field; //字段名称
+    int type; //字段类型 char为0;int为1
+    int length; //字段长度
+} CreateField;
+typedef struct CreateFields { /*create语句中的字段定义*/
+    struct CreateField *fdef;
+    struct CreateFields *next_fdef; //下一字段
+} CreateFields;
+typedef struct CreateTable { /*create语法树根节点*/
+    char *table; //基本表名称
+    struct CreateFields *fdef; //字段定义
+} CreateTable;
+void do_create_table(struct CreateTable* create_table_ctx);
+/* show table */
+void show_tables();
+/* drop table */
+void drop_table(char* table);
+
+#line 136 "xdsql.tab.c" /* yacc.c:337  */
 # ifndef YY_NULLPTR
-#  if defined __cplusplus && 201103L <= __cplusplus
-#   define YY_NULLPTR nullptr
+#  if defined __cplusplus
+#   if 201103L <= __cplusplus
+#    define YY_NULLPTR nullptr
+#   else
+#    define YY_NULLPTR 0
+#   endif
 #  else
-#   define YY_NULLPTR 0
+#   define YY_NULLPTR ((void*)0)
 #  endif
 # endif
 
@@ -110,29 +170,29 @@ extern int yydebug;
 # define YYTOKENTYPE
   enum yytokentype
   {
-    CREATE = 258,
-    SHOW = 259,
-    DROP = 260,
-    USE = 261,
-    INSERT = 262,
-    SELECT = 263,
-    DELETE = 264,
-    UPDATE = 265,
-    SET = 266,
-    INTO = 267,
-    FROM = 268,
-    WHERE = 269,
-    DATABASE = 270,
-    DATABASES = 271,
-    TABLE = 272,
-    TABLES = 273,
-    VALUES = 274,
-    IDENTIFIER = 275,
-    NUMBER = 276,
-    STRING = 277,
-    SELECT_ALL = 278,
-    INT = 279,
-    CHAR = 280,
+    IDENTIFIER = 258,
+    STRING = 259,
+    NUMBER = 260,
+    CHAR = 261,
+    INT = 262,
+    CREATE = 263,
+    SHOW = 264,
+    DROP = 265,
+    USE = 266,
+    INSERT = 267,
+    SELECT = 268,
+    DELETE = 269,
+    UPDATE = 270,
+    SET = 271,
+    INTO = 272,
+    FROM = 273,
+    WHERE = 274,
+    DATABASE = 275,
+    DATABASES = 276,
+    TABLE = 277,
+    TABLES = 278,
+    VALUES = 279,
+    SELECT_ALL = 280,
     SINGLE_QUOTE = 281,
     COMMA = 282,
     LPAREN = 283,
@@ -144,14 +204,28 @@ extern int yydebug;
     NOT_EQUAL = 289,
     MORE = 290,
     LESS = 291,
-    NOT = 292,
-    UMINUS = 293
+    NOT = 292
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef int YYSTYPE;
+
+union YYSTYPE
+{
+#line 67 "xdsql.y" /* yacc.c:352  */
+
+    int intval;
+    double dval;
+    char* strval;
+    struct CreateField *create_field; //字段定义
+    struct CreateFields *create_fields; //字段定义列表
+    struct CreateTable *create_table; //整个create语句
+
+#line 226 "xdsql.tab.c" /* yacc.c:352  */
+};
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
@@ -163,9 +237,7 @@ int yyparse (void);
 
 #endif /* !YY_YY_XDSQL_TAB_H_INCLUDED  */
 
-/* Copy the second part of user declarations.  */
 
-#line 169 "xdsql.tab.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -186,13 +258,13 @@ typedef signed char yytype_int8;
 #ifdef YYTYPE_UINT16
 typedef YYTYPE_UINT16 yytype_uint16;
 #else
-typedef unsigned short int yytype_uint16;
+typedef unsigned short yytype_uint16;
 #endif
 
 #ifdef YYTYPE_INT16
 typedef YYTYPE_INT16 yytype_int16;
 #else
-typedef short int yytype_int16;
+typedef short yytype_int16;
 #endif
 
 #ifndef YYSIZE_T
@@ -204,7 +276,7 @@ typedef short int yytype_int16;
 #  include <stddef.h> /* INFRINGES ON USER NAME SPACE */
 #  define YYSIZE_T size_t
 # else
-#  define YYSIZE_T unsigned int
+#  define YYSIZE_T unsigned
 # endif
 #endif
 
@@ -240,15 +312,6 @@ typedef short int yytype_int16;
 # define YY_ATTRIBUTE_UNUSED YY_ATTRIBUTE ((__unused__))
 #endif
 
-#if !defined _Noreturn \
-     && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112)
-# if defined _MSC_VER && 1200 <= _MSC_VER
-#  define _Noreturn __declspec (noreturn)
-# else
-#  define _Noreturn YY_ATTRIBUTE ((__noreturn__))
-# endif
-#endif
-
 /* Suppress unused-variable warnings by "using" E.  */
 #if ! defined lint || defined __GNUC__
 # define YYUSE(E) ((void) (E))
@@ -256,7 +319,7 @@ typedef short int yytype_int16;
 # define YYUSE(E) /* empty */
 #endif
 
-#if defined __GNUC__ && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
+#if defined __GNUC__ && ! defined __ICC && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
 /* Suppress an incorrect diagnostic about yylval being uninitialized.  */
 # define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN \
     _Pragma ("GCC diagnostic push") \
@@ -407,27 +470,27 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   108
+#define YYLAST   102
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  43
+#define YYNTOKENS  42
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  24
+#define YYNNTS  25
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  53
+#define YYNRULES  54
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  110
+#define YYNSTATES  111
 
-/* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
-   by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   293
+#define YYMAXUTOK   292
 
+/* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
+   as returned by yylex, with out-of-bounds checking.  */
 #define YYTRANSLATE(YYX)                                                \
-  ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
+  ((unsigned) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
 
 /* YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to TOKEN-NUM
-   as returned by yylex, without out-of-bounds checking.  */
+   as returned by yylex.  */
 static const yytype_uint8 yytranslate[] =
 {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -459,19 +522,19 @@ static const yytype_uint8 yytranslate[] =
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
       25,    26,    27,    28,    29,    30,    31,    32,    33,    34,
-      35,    36,    37,    42
+      35,    36,    37
 };
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
-static const yytype_uint8 yyrline[] =
+static const yytype_uint16 yyrline[] =
 {
-       0,    34,    34,    35,    38,    39,    40,    41,    42,    43,
-      44,    45,    46,    47,    48,    51,    57,    63,    69,    75,
-      81,    82,    85,    89,    95,   101,   107,   111,   117,   118,
-     121,   127,   128,   131,   132,   133,   135,   136,   137,   138,
-     139,   142,   143,   146,   147,   148,   149,   150,   153,   154,
-     160,   166,   172,   173
+       0,   102,   102,   103,   106,   107,   108,   109,   110,   111,
+     112,   113,   114,   117,   124,   131,   138,   144,   148,   149,
+     152,   165,   175,   191,   204,   213,   219,   225,   229,   235,
+     236,   239,   245,   246,   249,   250,   251,   253,   254,   255,
+     256,   257,   260,   261,   264,   265,   266,   267,   268,   271,
+     272,   278,   284,   290,   291
 };
 #endif
 
@@ -480,17 +543,18 @@ static const yytype_uint8 yyrline[] =
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "$end", "error", "$undefined", "CREATE", "SHOW", "DROP", "USE",
-  "INSERT", "SELECT", "DELETE", "UPDATE", "SET", "INTO", "FROM", "WHERE",
-  "DATABASE", "DATABASES", "TABLE", "TABLES", "VALUES", "IDENTIFIER",
-  "NUMBER", "STRING", "SELECT_ALL", "INT", "CHAR", "SINGLE_QUOTE", "COMMA",
+  "$end", "error", "$undefined", "IDENTIFIER", "STRING", "NUMBER", "CHAR",
+  "INT", "CREATE", "SHOW", "DROP", "USE", "INSERT", "SELECT", "DELETE",
+  "UPDATE", "SET", "INTO", "FROM", "WHERE", "DATABASE", "DATABASES",
+  "TABLE", "TABLES", "VALUES", "SELECT_ALL", "SINGLE_QUOTE", "COMMA",
   "LPAREN", "RPAREN", "SEMICOLON", "OR", "AND", "EQUAL", "NOT_EQUAL",
-  "MORE", "LESS", "NOT", "'+'", "'-'", "'*'", "'/'", "UMINUS", "$accept",
+  "MORE", "LESS", "NOT", "'+'", "'-'", "'*'", "'/'", "$accept",
   "stmt_list", "stmt", "create_db_stmt", "drop_db_stmt", "use_db_stmt",
-  "show_dbs_stmt", "create_table_stmt", "column_def_list", "column_def",
-  "drop_table_stmt", "show_tables_stmt", "insert_stmt", "identifier_list",
-  "select_stmt", "select_list", "term", "expr", "term_list", "expr_list",
-  "where_clause", "delete_stmt", "update_stmt", "update_list", YY_NULLPTR
+  "show_dbs_stmt", "table_stmt", "create_table_stmt", "column_def_list",
+  "column_def", "drop_table_stmt", "show_tables_stmt", "insert_stmt",
+  "identifier_list", "select_stmt", "select_list", "term", "expr",
+  "term_list", "expr_list", "where_clause", "delete_stmt", "update_stmt",
+  "update_list", YY_NULLPTR
 };
 #endif
 
@@ -503,14 +567,14 @@ static const yytype_uint16 yytoknum[] =
      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
      275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
      285,   286,   287,   288,   289,   290,   291,   292,    43,    45,
-      42,    47,   293
+      42,    47
 };
 # endif
 
-#define YYPACT_NINF -66
+#define YYPACT_NINF -64
 
 #define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-66)))
+  (!!((Yystate) == (-64)))
 
 #define YYTABLE_NINF -1
 
@@ -521,17 +585,18 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-     -66,    25,   -66,     1,    36,    41,    -1,    29,    24,    40,
-      45,    38,   -66,   -66,   -66,   -66,   -66,   -66,   -66,   -66,
-     -66,   -66,   -66,    49,    50,   -66,   -66,    51,    52,   -66,
-      53,   -66,   -66,   -66,   -66,    61,   -66,    48,    60,    70,
-     -66,   -66,    54,   -66,   -66,   -11,    63,    16,    71,    64,
-      66,    59,    63,   -66,    -7,   -66,   -16,   -66,    55,    -5,
-       2,    13,   -66,    16,    30,    69,   -66,   -16,   -16,    15,
-     -66,    35,    16,    72,   -66,   -66,    62,    66,   -66,    33,
-      74,   -66,   -18,   -66,    16,    16,    16,    16,   -16,   -16,
-     -66,    58,    73,   -66,   -66,    68,   -66,   -66,   -66,   -66,
-     -66,    67,   -66,    16,    75,    16,   -66,   -66,    34,   -66
+     -64,     5,   -64,    31,    34,    32,    35,    18,     3,    16,
+      55,    29,   -64,   -64,   -64,   -64,   -64,   -64,   -64,   -64,
+     -64,   -64,   -64,   -64,    58,    60,   -64,   -64,    68,    69,
+     -64,    70,   -64,   -64,   -64,   -64,    56,   -64,    48,    73,
+      65,   -64,   -64,    54,   -64,   -64,    -2,    80,    45,    66,
+      81,    83,    59,    80,   -64,     2,   -64,    -1,   -64,    57,
+       6,    17,    33,   -64,    45,    37,    85,   -64,    -1,    -1,
+      11,   -64,   -20,    45,    86,   -64,    63,   -64,    83,   -64,
+      40,    71,   -64,    10,   -64,    45,    45,    45,    45,    -1,
+      -1,   -64,    61,    87,   -64,   -64,    72,   -64,   -64,   -64,
+     -64,   -64,    67,   -64,    45,    64,    45,   -64,   -64,    41,
+     -64
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -540,32 +605,33 @@ static const yytype_int8 yypact[] =
 static const yytype_uint8 yydefact[] =
 {
        2,     0,     1,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     4,     5,     6,     7,     8,     9,    10,    11,
-      12,    13,    14,     0,     0,    18,    25,     0,     0,    17,
-       0,    35,    33,    34,    31,     0,    41,    32,     0,     0,
-       3,    15,     0,    16,    24,     0,     0,     0,    48,     0,
-       0,     0,     0,    28,    48,    42,     0,    50,     0,    48,
-       0,     0,    20,     0,     0,     0,    30,     0,     0,    36,
-      43,    49,     0,     0,    51,    23,     0,     0,    19,     0,
-       0,    29,     0,    46,     0,     0,     0,     0,     0,     0,
-      52,     0,     0,    21,    27,     0,    47,    37,    38,    39,
-      40,    45,    44,     0,     0,     0,    53,    22,     0,    26
+       0,     0,     4,     5,     6,     7,     8,    17,    19,    18,
+       9,    10,    11,    12,     0,     0,    16,    26,     0,     0,
+      15,     0,    36,    35,    34,    32,     0,    42,    33,     0,
+       0,     3,    13,     0,    14,    25,     0,     0,     0,    49,
+       0,     0,     0,     0,    29,    49,    43,     0,    51,     0,
+      49,     0,     0,    21,     0,     0,     0,    31,     0,     0,
+      37,    44,    50,     0,     0,    52,     0,    24,     0,    20,
+       0,     0,    30,     0,    47,     0,     0,     0,     0,     0,
+       0,    53,     0,     0,    22,    28,     0,    48,    38,    39,
+      40,    41,    46,    45,     0,     0,     0,    54,    23,     0,
+      27
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -66,   -66,   -66,   -66,   -66,   -66,   -66,   -66,   -66,    21,
-     -66,   -66,   -66,    56,   -66,   -66,    -8,   -66,   -62,   -65,
-     -44,   -66,   -66,   -66
+     -64,   -64,   -64,   -64,   -64,   -64,   -64,   -64,   -64,   -64,
+      19,   -64,   -64,   -64,    49,   -64,   -64,    -8,   -64,   -63,
+     -59,   -23,   -64,   -64,   -64
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-      -1,     1,    11,    12,    13,    14,    15,    16,    61,    62,
-      17,    18,    19,    54,    20,    35,    69,    70,    37,    71,
-      57,    21,    22,    59
+      -1,     1,    11,    12,    13,    14,    15,    16,    17,    62,
+      63,    18,    19,    20,    55,    21,    36,    70,    71,    38,
+      72,    58,    22,    23,    60
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -573,71 +639,72 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_uint8 yytable[] =
 {
-      36,    79,    82,    83,    31,    32,    33,    56,    51,    56,
-      66,    96,    67,    88,    89,    74,    23,    52,    24,    29,
-      65,    68,    73,   101,   102,     2,    75,    76,     3,     4,
-       5,     6,     7,     8,     9,    10,    31,    32,    33,    55,
-      77,    30,    78,   108,    31,    32,    33,    34,    84,    85,
-      86,    87,    25,    38,    26,    36,    27,    65,    28,    80,
-      47,    47,    94,   109,    90,    39,    88,    89,    40,    41,
-      42,    43,    44,    45,    46,    47,    97,    98,    99,   100,
-      48,    49,    50,    53,    58,    56,    60,    63,    72,    81,
-      92,   103,    91,    95,   104,   106,   105,    36,    93,    89,
-       0,     0,     0,     0,   107,     0,     0,     0,    64
+      37,    80,    32,    33,    34,     2,    32,    33,    34,    83,
+      84,    89,    90,     3,     4,     5,     6,     7,     8,     9,
+      10,    57,    52,    76,    77,    57,    53,    68,    35,    66,
+     102,   103,    67,    74,    39,    31,    69,    75,    30,    97,
+      56,    89,    90,   109,    85,    86,    87,    88,    32,    33,
+      34,    24,    28,    25,    29,    26,    37,    27,    40,    41,
+      78,    42,    79,    43,    66,    91,    81,    48,    48,    95,
+     110,    44,    45,    46,    47,    48,    49,    98,    99,   100,
+     101,    50,    51,    54,    59,    57,    61,    64,    82,    92,
+      73,    93,   105,   108,   104,    96,   107,    94,    37,    90,
+     106,     0,    65
 };
 
 static const yytype_int8 yycheck[] =
 {
-       8,    63,    67,    68,    20,    21,    22,    14,    19,    14,
-      54,    29,    28,    31,    32,    59,    15,    28,    17,    20,
-      27,    37,    27,    88,    89,     0,    24,    25,     3,     4,
-       5,     6,     7,     8,     9,    10,    20,    21,    22,    47,
-      27,    12,    29,   105,    20,    21,    22,    23,    33,    34,
-      35,    36,    16,    13,    18,    63,    15,    27,    17,    29,
-      27,    27,    29,    29,    72,    20,    31,    32,    30,    20,
-      20,    20,    20,    20,    13,    27,    84,    85,    86,    87,
-      20,    11,    28,    20,    20,    14,    20,    28,    33,    20,
-      28,    33,    20,    19,    21,   103,    28,   105,    77,    32,
-      -1,    -1,    -1,    -1,    29,    -1,    -1,    -1,    52
+       8,    64,     3,     4,     5,     0,     3,     4,     5,    68,
+      69,    31,    32,     8,     9,    10,    11,    12,    13,    14,
+      15,    19,    24,     6,     7,    19,    28,    28,    25,    27,
+      89,    90,    55,    27,    18,    17,    37,    60,     3,    29,
+      48,    31,    32,   106,    33,    34,    35,    36,     3,     4,
+       5,    20,    20,    22,    22,    21,    64,    23,     3,    30,
+      27,     3,    29,     3,    27,    73,    29,    27,    27,    29,
+      29,     3,     3,     3,    18,    27,     3,    85,    86,    87,
+      88,    16,    28,     3,     3,    19,     3,    28,     3,     3,
+      33,    28,     5,    29,    33,    24,   104,    78,   106,    32,
+      28,    -1,    53
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    44,     0,     3,     4,     5,     6,     7,     8,     9,
-      10,    45,    46,    47,    48,    49,    50,    53,    54,    55,
-      57,    64,    65,    15,    17,    16,    18,    15,    17,    20,
-      12,    20,    21,    22,    23,    58,    59,    61,    13,    20,
-      30,    20,    20,    20,    20,    20,    13,    27,    20,    11,
-      28,    19,    28,    20,    56,    59,    14,    63,    20,    66,
-      20,    51,    52,    28,    56,    27,    63,    28,    37,    59,
-      60,    62,    33,    27,    63,    24,    25,    27,    29,    61,
-      29,    20,    62,    62,    33,    34,    35,    36,    31,    32,
-      59,    20,    28,    52,    29,    19,    29,    59,    59,    59,
-      59,    62,    62,    33,    21,    28,    59,    29,    61,    29
+       0,    43,     0,     8,     9,    10,    11,    12,    13,    14,
+      15,    44,    45,    46,    47,    48,    49,    50,    53,    54,
+      55,    57,    64,    65,    20,    22,    21,    23,    20,    22,
+       3,    17,     3,     4,     5,    25,    58,    59,    61,    18,
+       3,    30,     3,     3,     3,     3,     3,    18,    27,     3,
+      16,    28,    24,    28,     3,    56,    59,    19,    63,     3,
+      66,     3,    51,    52,    28,    56,    27,    63,    28,    37,
+      59,    60,    62,    33,    27,    63,     6,     7,    27,    29,
+      61,    29,     3,    62,    62,    33,    34,    35,    36,    31,
+      32,    59,     3,    28,    52,    29,    24,    29,    59,    59,
+      59,    59,    62,    62,    33,     5,    28,    59,    29,    61,
+      29
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    43,    44,    44,    45,    45,    45,    45,    45,    45,
-      45,    45,    45,    45,    45,    46,    47,    48,    49,    50,
-      51,    51,    52,    52,    53,    54,    55,    55,    56,    56,
-      57,    58,    58,    59,    59,    59,    60,    60,    60,    60,
-      60,    61,    61,    62,    62,    62,    62,    62,    63,    63,
-      64,    65,    66,    66
+       0,    42,    43,    43,    44,    44,    44,    44,    44,    44,
+      44,    44,    44,    45,    46,    47,    48,    49,    49,    49,
+      50,    51,    51,    52,    52,    53,    54,    55,    55,    56,
+      56,    57,    58,    58,    59,    59,    59,    60,    60,    60,
+      60,    60,    61,    61,    62,    62,    62,    62,    62,    63,
+      63,    64,    65,    66,    66
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
        0,     2,     0,     3,     1,     1,     1,     1,     1,     1,
-       1,     1,     1,     1,     1,     3,     3,     2,     2,     6,
-       1,     3,     5,     2,     3,     2,    10,     7,     1,     3,
-       5,     1,     1,     1,     1,     1,     1,     3,     3,     3,
-       3,     1,     3,     1,     3,     3,     2,     3,     0,     2,
-       4,     5,     3,     5
+       1,     1,     1,     3,     3,     2,     2,     1,     1,     1,
+       6,     1,     3,     5,     2,     3,     2,    10,     7,     1,
+       3,     5,     1,     1,     1,     1,     1,     1,     3,     3,
+       3,     3,     1,     3,     1,     3,     3,     2,     3,     0,
+       2,     4,     5,     3,     5
 };
 
 
@@ -653,22 +720,22 @@ static const yytype_uint8 yyr2[] =
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
-#define YYBACKUP(Token, Value)                                  \
-do                                                              \
-  if (yychar == YYEMPTY)                                        \
-    {                                                           \
-      yychar = (Token);                                         \
-      yylval = (Value);                                         \
-      YYPOPSTACK (yylen);                                       \
-      yystate = *yyssp;                                         \
-      goto yybackup;                                            \
-    }                                                           \
-  else                                                          \
-    {                                                           \
-      yyerror (YY_("syntax error: cannot back up")); \
-      YYERROR;                                                  \
-    }                                                           \
-while (0)
+#define YYBACKUP(Token, Value)                                    \
+  do                                                              \
+    if (yychar == YYEMPTY)                                        \
+      {                                                           \
+        yychar = (Token);                                         \
+        yylval = (Value);                                         \
+        YYPOPSTACK (yylen);                                       \
+        yystate = *yyssp;                                         \
+        goto yybackup;                                            \
+      }                                                           \
+    else                                                          \
+      {                                                           \
+        yyerror (YY_("syntax error: cannot back up")); \
+        YYERROR;                                                  \
+      }                                                           \
+  while (0)
 
 /* Error token number */
 #define YYTERROR        1
@@ -708,37 +775,37 @@ do {                                                                      \
 } while (0)
 
 
-/*----------------------------------------.
-| Print this symbol's value on YYOUTPUT.  |
-`----------------------------------------*/
+/*-----------------------------------.
+| Print this symbol's value on YYO.  |
+`-----------------------------------*/
 
 static void
-yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_value_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep)
 {
-  FILE *yyo = yyoutput;
-  YYUSE (yyo);
+  FILE *yyoutput = yyo;
+  YYUSE (yyoutput);
   if (!yyvaluep)
     return;
 # ifdef YYPRINT
   if (yytype < YYNTOKENS)
-    YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
+    YYPRINT (yyo, yytoknum[yytype], *yyvaluep);
 # endif
   YYUSE (yytype);
 }
 
 
-/*--------------------------------.
-| Print this symbol on YYOUTPUT.  |
-`--------------------------------*/
+/*---------------------------.
+| Print this symbol on YYO.  |
+`---------------------------*/
 
 static void
-yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep)
 {
-  YYFPRINTF (yyoutput, "%s %s (",
+  YYFPRINTF (yyo, "%s %s (",
              yytype < YYNTOKENS ? "token" : "nterm", yytname[yytype]);
 
-  yy_symbol_value_print (yyoutput, yytype, yyvaluep);
-  YYFPRINTF (yyoutput, ")");
+  yy_symbol_value_print (yyo, yytype, yyvaluep);
+  YYFPRINTF (yyo, ")");
 }
 
 /*------------------------------------------------------------------.
@@ -772,7 +839,7 @@ do {                                                            \
 static void
 yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, int yyrule)
 {
-  unsigned long int yylno = yyrline[yyrule];
+  unsigned long yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
   int yyi;
   YYFPRINTF (stderr, "Reducing stack by rule %d (line %lu):\n",
@@ -783,7 +850,7 @@ yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, int yyrule)
       YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr,
                        yystos[yyssp[yyi + 1 - yynrhs]],
-                       &(yyvsp[(yyi + 1) - (yynrhs)])
+                       &yyvsp[(yyi + 1) - (yynrhs)]
                                               );
       YYFPRINTF (stderr, "\n");
     }
@@ -887,7 +954,10 @@ yytnamerr (char *yyres, const char *yystr)
           case '\\':
             if (*++yyp != '\\')
               goto do_not_strip_quotes;
-            /* Fall through.  */
+            else
+              goto append;
+
+          append:
           default:
             if (yyres)
               yyres[yyn] = *yyp;
@@ -905,7 +975,7 @@ yytnamerr (char *yyres, const char *yystr)
   if (! yyres)
     return yystrlen (yystr);
 
-  return yystpcpy (yyres, yystr) - yyres;
+  return (YYSIZE_T) (yystpcpy (yyres, yystr) - yyres);
 }
 # endif
 
@@ -983,10 +1053,10 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yyarg[yycount++] = yytname[yyx];
                 {
                   YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
-                  if (! (yysize <= yysize1
-                         && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
+                  if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
+                    yysize = yysize1;
+                  else
                     return 2;
-                  yysize = yysize1;
                 }
               }
         }
@@ -998,6 +1068,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
       case N:                               \
         yyformat = S;                       \
       break
+    default: /* Avoid compiler warnings. */
       YYCASE_(0, YY_("syntax error"));
       YYCASE_(1, YY_("syntax error, unexpected %s"));
       YYCASE_(2, YY_("syntax error, unexpected %s, expecting %s"));
@@ -1009,9 +1080,10 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 
   {
     YYSIZE_T yysize1 = yysize + yystrlen (yyformat);
-    if (! (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
+    if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
+      yysize = yysize1;
+    else
       return 2;
-    yysize = yysize1;
   }
 
   if (*yymsg_alloc < yysize)
@@ -1137,23 +1209,31 @@ yyparse (void)
   yychar = YYEMPTY; /* Cause a token to be read.  */
   goto yysetstate;
 
+
 /*------------------------------------------------------------.
-| yynewstate -- Push a new state, which is found in yystate.  |
+| yynewstate -- push a new state, which is found in yystate.  |
 `------------------------------------------------------------*/
- yynewstate:
+yynewstate:
   /* In all cases, when you get here, the value and location stacks
      have just been pushed.  So pushing a state here evens the stacks.  */
   yyssp++;
 
- yysetstate:
-  *yyssp = yystate;
+
+/*--------------------------------------------------------------------.
+| yynewstate -- set current state (the top of the stack) to yystate.  |
+`--------------------------------------------------------------------*/
+yysetstate:
+  *yyssp = (yytype_int16) yystate;
 
   if (yyss + yystacksize - 1 <= yyssp)
+#if !defined yyoverflow && !defined YYSTACK_RELOCATE
+    goto yyexhaustedlab;
+#else
     {
       /* Get the current used size of the three stacks, in elements.  */
-      YYSIZE_T yysize = yyssp - yyss + 1;
+      YYSIZE_T yysize = (YYSIZE_T) (yyssp - yyss + 1);
 
-#ifdef yyoverflow
+# if defined yyoverflow
       {
         /* Give user a chance to reallocate the stack.  Use copies of
            these so that the &'s don't force the real ones into
@@ -1169,14 +1249,10 @@ yyparse (void)
                     &yyss1, yysize * sizeof (*yyssp),
                     &yyvs1, yysize * sizeof (*yyvsp),
                     &yystacksize);
-
         yyss = yyss1;
         yyvs = yyvs1;
       }
-#else /* no yyoverflow */
-# ifndef YYSTACK_RELOCATE
-      goto yyexhaustedlab;
-# else
+# else /* defined YYSTACK_RELOCATE */
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
         goto yyexhaustedlab;
@@ -1192,22 +1268,22 @@ yyparse (void)
           goto yyexhaustedlab;
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
-#  undef YYSTACK_RELOCATE
+# undef YYSTACK_RELOCATE
         if (yyss1 != yyssa)
           YYSTACK_FREE (yyss1);
       }
 # endif
-#endif /* no yyoverflow */
 
       yyssp = yyss + yysize - 1;
       yyvsp = yyvs + yysize - 1;
 
       YYDPRINTF ((stderr, "Stack size increased to %lu\n",
-                  (unsigned long int) yystacksize));
+                  (unsigned long) yystacksize));
 
       if (yyss + yystacksize - 1 <= yyssp)
         YYABORT;
     }
+#endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
@@ -1216,11 +1292,11 @@ yyparse (void)
 
   goto yybackup;
 
+
 /*-----------.
 | yybackup.  |
 `-----------*/
 yybackup:
-
   /* Do appropriate processing given the current state.  Read a
      lookahead token if we need one and don't already have one.  */
 
@@ -1293,7 +1369,7 @@ yydefault:
 
 
 /*-----------------------------.
-| yyreduce -- Do a reduction.  |
+| yyreduce -- do a reduction.  |
 `-----------------------------*/
 yyreduce:
   /* yyn is the number of a rule to reduce with.  */
@@ -1313,128 +1389,190 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-        case 15:
-#line 52 "xdsql.y" /* yacc.c:1646  */
+        case 13:
+#line 118 "xdsql.y" /* yacc.c:1652  */
     {
-                    printf_red("Create database\n");
-               }
-#line 1322 "xdsql.tab.c" /* yacc.c:1646  */
+    char* dbname = (yyvsp[0].strval);
+    create_db(dbname);
+}
+#line 1399 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 14:
+#line 125 "xdsql.y" /* yacc.c:1652  */
+    {
+    char* dbname = (yyvsp[0].strval);
+    drop_db(dbname);
+}
+#line 1408 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 15:
+#line 132 "xdsql.y" /* yacc.c:1652  */
+    {
+    char* dbname = (yyvsp[0].strval);
+    use_db(dbname);
+}
+#line 1417 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 16:
-#line 58 "xdsql.y" /* yacc.c:1646  */
+#line 139 "xdsql.y" /* yacc.c:1652  */
     {
-                printf_red("Drop database\n");
-            }
-#line 1330 "xdsql.tab.c" /* yacc.c:1646  */
+    show_db();
+}
+#line 1425 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 17:
-#line 64 "xdsql.y" /* yacc.c:1646  */
+#line 145 "xdsql.y" /* yacc.c:1652  */
     {
-               printf_red("Use database\n");
-           }
-#line 1338 "xdsql.tab.c" /* yacc.c:1646  */
+    do_create_table((yyvsp[0].create_table));
+}
+#line 1433 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
-  case 18:
-#line 70 "xdsql.y" /* yacc.c:1646  */
+  case 20:
+#line 153 "xdsql.y" /* yacc.c:1652  */
     {
-                 printf_red("Show databases\n");
-             }
-#line 1346 "xdsql.tab.c" /* yacc.c:1646  */
+    // struct CreateTable { /*create语法树根节点*/
+    //     char *table; //基本表名称
+    //     struct CreateFields *fdef; //字段定义
+    // };
+    (yyval.create_table) = malloc(sizeof(struct CreateTable));
+    (yyval.create_table)->table = (yyvsp[-3].strval);
+    (yyval.create_table)->fdef = (yyvsp[-1].create_fields);
+    // printf_red("Create table with columns\n");
+}
+#line 1448 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
-  case 19:
-#line 76 "xdsql.y" /* yacc.c:1646  */
+  case 21:
+#line 166 "xdsql.y" /* yacc.c:1652  */
     {
-                      printf_red("Create table with columns\n");
-                  }
-#line 1354 "xdsql.tab.c" /* yacc.c:1646  */
+    // struct CreateFields { /*create语句中的字段定义*/
+    //     struct CreateField *fdef;
+    //     struct CreateFields *next_fdef; //下一字段
+    // };
+    (yyval.create_fields) = malloc(sizeof(struct CreateFields));
+    (yyval.create_fields)->fdef = (yyvsp[0].create_field);
+    (yyval.create_fields)->next_fdef = NULL;
+}
+#line 1462 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 22:
-#line 86 "xdsql.y" /* yacc.c:1646  */
+#line 176 "xdsql.y" /* yacc.c:1652  */
     {
-              printf_red("CHAR COLUMN\n");
-          }
-#line 1362 "xdsql.tab.c" /* yacc.c:1646  */
+    CreateFields* fields = (yyvsp[-2].create_fields);
+
+    CreateFields* temp = fields;
+    while (temp->next_fdef != NULL) temp = temp->next_fdef;
+    CreateFields* next_fields = (CreateFields*) malloc(sizeof(struct CreateFields));
+    next_fields->fdef = (yyvsp[0].create_field);
+    next_fields->next_fdef = NULL;
+
+    temp->next_fdef = next_fields;
+
+    (yyval.create_fields) = fields;
+}
+#line 1480 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 23:
-#line 90 "xdsql.y" /* yacc.c:1646  */
+#line 192 "xdsql.y" /* yacc.c:1652  */
     {
-              printf_red("INT COLUMN\n");
-          }
-#line 1370 "xdsql.tab.c" /* yacc.c:1646  */
+    // struct CreateField {
+    //     char *field; //字段名称
+    //     enum TYPE type; //字段类型
+    //     int length; //字段长度
+    // }
+    struct CreateField *tmp = (CreateField*)malloc(sizeof(struct CreateField));
+    tmp->field = (yyvsp[-4].strval);
+    tmp->type = (yyvsp[-3].intval);
+    tmp->length = (yyvsp[-1].dval);
+    (yyval.create_field) = tmp;
+}
+#line 1497 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 24:
-#line 96 "xdsql.y" /* yacc.c:1646  */
+#line 205 "xdsql.y" /* yacc.c:1652  */
     {
-                    printf_red("Drop table\n");
-                }
-#line 1378 "xdsql.tab.c" /* yacc.c:1646  */
+    struct CreateField *tmp = (CreateField*)malloc(sizeof(struct CreateField));
+    tmp->field = (yyvsp[-1].strval);
+    tmp->type = (yyvsp[0].intval);
+    (yyval.create_field) = tmp;
+}
+#line 1508 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 25:
-#line 102 "xdsql.y" /* yacc.c:1646  */
+#line 214 "xdsql.y" /* yacc.c:1652  */
     {
-                     printf_red("Show tables\n");
-                 }
-#line 1386 "xdsql.tab.c" /* yacc.c:1646  */
+    drop_table((yyvsp[0].strval));
+}
+#line 1516 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 26:
-#line 108 "xdsql.y" /* yacc.c:1646  */
+#line 220 "xdsql.y" /* yacc.c:1652  */
     {
-                printf_red("Insert into with values\n");
-            }
-#line 1394 "xdsql.tab.c" /* yacc.c:1646  */
+    show_tables();
+}
+#line 1524 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 27:
-#line 112 "xdsql.y" /* yacc.c:1646  */
+#line 226 "xdsql.y" /* yacc.c:1652  */
+    {
+                printf_red("Insert into with values\n");
+            }
+#line 1532 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 28:
+#line 230 "xdsql.y" /* yacc.c:1652  */
     {
                 printf_red("Insert into with all values\n");
             }
-#line 1402 "xdsql.tab.c" /* yacc.c:1646  */
+#line 1540 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
-  case 30:
-#line 122 "xdsql.y" /* yacc.c:1646  */
+  case 31:
+#line 240 "xdsql.y" /* yacc.c:1652  */
     {
                 printf_red("Select from with columns\n");
             }
-#line 1410 "xdsql.tab.c" /* yacc.c:1646  */
-    break;
-
-  case 49:
-#line 155 "xdsql.y" /* yacc.c:1646  */
-    {
-                printf_red("where clause\n");
-            }
-#line 1418 "xdsql.tab.c" /* yacc.c:1646  */
+#line 1548 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 50:
-#line 161 "xdsql.y" /* yacc.c:1646  */
+#line 273 "xdsql.y" /* yacc.c:1652  */
     {
-                printf_red("Delete from\n");
+                printf_red("where clause\n");
             }
-#line 1426 "xdsql.tab.c" /* yacc.c:1646  */
+#line 1556 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 51:
-#line 167 "xdsql.y" /* yacc.c:1646  */
+#line 279 "xdsql.y" /* yacc.c:1652  */
     {
-                printf_red("Update table with values:\n");
+                printf_red("Delete from\n");
             }
-#line 1434 "xdsql.tab.c" /* yacc.c:1646  */
+#line 1564 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 52:
+#line 285 "xdsql.y" /* yacc.c:1652  */
+    {
+                printf_red("Update table with values\n");
+            }
+#line 1572 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
 
-#line 1438 "xdsql.tab.c" /* yacc.c:1646  */
+#line 1576 "xdsql.tab.c" /* yacc.c:1652  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1459,14 +1597,13 @@ yyreduce:
   /* Now 'shift' the result of the reduction.  Determine what state
      that goes to, based on the state we popped back to and the rule
      number reduced by.  */
-
-  yyn = yyr1[yyn];
-
-  yystate = yypgoto[yyn - YYNTOKENS] + *yyssp;
-  if (0 <= yystate && yystate <= YYLAST && yycheck[yystate] == *yyssp)
-    yystate = yytable[yystate];
-  else
-    yystate = yydefgoto[yyn - YYNTOKENS];
+  {
+    const int yylhs = yyr1[yyn] - YYNTOKENS;
+    const int yyi = yypgoto[yylhs] + *yyssp;
+    yystate = (0 <= yyi && yyi <= YYLAST && yycheck[yyi] == *yyssp
+               ? yytable[yyi]
+               : yydefgoto[yylhs]);
+  }
 
   goto yynewstate;
 
@@ -1549,12 +1686,10 @@ yyerrlab:
 | yyerrorlab -- error raised explicitly by YYERROR.  |
 `---------------------------------------------------*/
 yyerrorlab:
-
-  /* Pacify compilers like GCC when the user code never invokes
-     YYERROR and the label yyerrorlab therefore never appears in user
-     code.  */
-  if (/*CONSTCOND*/ 0)
-     goto yyerrorlab;
+  /* Pacify compilers when the user code never invokes YYERROR and the
+     label yyerrorlab therefore never appears in user code.  */
+  if (0)
+    YYERROR;
 
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
@@ -1616,12 +1751,14 @@ yyacceptlab:
   yyresult = 0;
   goto yyreturn;
 
+
 /*-----------------------------------.
 | yyabortlab -- YYABORT comes here.  |
 `-----------------------------------*/
 yyabortlab:
   yyresult = 1;
   goto yyreturn;
+
 
 #if !defined yyoverflow || YYERROR_VERBOSE
 /*-------------------------------------------------.
@@ -1633,6 +1770,10 @@ yyexhaustedlab:
   /* Fall through.  */
 #endif
 
+
+/*-----------------------------------------------------.
+| yyreturn -- parsing is finished, return the result.  |
+`-----------------------------------------------------*/
 yyreturn:
   if (yychar != YYEMPTY)
     {
@@ -1662,13 +1803,344 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 176 "xdsql.y" /* yacc.c:1906  */
+#line 294 "xdsql.y" /* yacc.c:1918  */
+
+void create_db(char* dbname)
+{
+    char folderPath[100];
+    sprintf(folderPath, "./data/%s", dbname);
+    const char* sysFilePath = "./data/sys.dat";
+
+    // 检查文件夹是否存在
+    if (access(folderPath, 0) == -1) {
+        // 文件夹不存在，创建文件夹
+        int status = mkdir(folderPath, 0700);
+        if (status == 0) {
+            printf("Create database %s success\n", dbname);
+
+            // 创建 sys.dat 文件
+            char filePath[100];
+            sprintf(filePath, "%s/sys.dat", folderPath);
+            FILE* file = fopen(filePath, "w");
+            if (file != NULL) {
+                printf("sys.dat file created\n");
+                fclose(file);
+            } else {
+                printf("Failed to create sys.dat file\n");
+            }
+
+            // 在文件中写入 dbname
+            FILE* sysFile = fopen(sysFilePath, "a");
+            if (sysFile != NULL) {
+                fprintf(sysFile, "%s\n", dbname);
+                fclose(sysFile);
+            } else {
+                printf("Failed to open data/sys.dat\n");
+            }
+        } else {
+            printf("Failed to create database %s\n", dbname);
+        }
+    } else {
+        printf("Database %s already exists\n", dbname);
+    }
+}
+
+void drop_db(char* dbname)
+{
+    // printf("drop %s\n", dbname);
+    char folderPath[100];
+    char sysFilePath[100];
+
+    sprintf(folderPath, "./data/%s", dbname);
+    sprintf(sysFilePath, "./data/sys.dat");
+
+    // 检查 sys.dat 文件中是否存在 dbname 记录
+    FILE* sysFile = fopen(sysFilePath, "r");
+    if (sysFile != NULL) {
+        // 创建临时文件以保存除 dbname 记录之外的内容
+        FILE* tempFile = fopen("./data/temp.dat", "w");
+        if (tempFile != NULL) {
+            char line[100];
+            int deleted = 0;
+
+            // 遍历 sys.dat 文件中的每一行
+            while (fgets(line, sizeof(line), sysFile)) {
+                size_t len = strlen(line);
+                while (len > 0 && (isspace(line[len-1]) || line[len-1] == '\n')) {
+                    line[--len] = '\0';
+                }
+                // 检查行是否与 dbname 相等
+                if (strcmp(line, dbname) != 0) {
+                    // 不是 dbname 记录，将行写入临时文件
+                    // printf("%s %s\n",line,dbname);
+                    fputs(line, tempFile);
+                } else {
+                    // 是 dbname 记录，标记为已删除
+                    deleted = 1;
+                }
+            }
+            fclose(tempFile);
+            if (deleted) {
+                // 删除 sys.dat 文件
+                remove(sysFilePath);
+
+                // 重命名临时文件为 sys.dat
+                // char c = getchar();
+                rename("./data/temp.dat", sysFilePath);
+
+                // 删除数据库文件夹
+                remove_directory(folderPath);
+                printf("Database %s dropped\n", dbname);
+            } else {
+                // 没有找到 dbname 记录
+                remove("./data/temp.dat");
+                printf("Database %s not found\n", dbname);
+            }
+            fclose(sysFile);
+        } else {
+            printf("Failed to open temp.dat\n");
+            fclose(sysFile);
+        }
+    } else {
+        printf("sys.dat file not found\n");
+    }
+}
+
+void remove_directory(const char* path) {
+    char command[100];
+    sprintf(command, "rm -rf \"%s\"", path);
+    system(command);
+}
+
+void show_db() {
+    FILE *file;
+    char line[256];
+
+    // 打开文件
+    file = fopen("./data/sys.dat", "r");
+
+    if (file == NULL) {
+        printf("无法打开文件.\n");
+        return;
+    }
+
+    // 逐行读取并打印文件内容
+    while (fgets(line, sizeof(line), file)) {
+        printf("%s", line);
+    }
+
+    // 关闭文件
+    fclose(file);
+}
+
+void use_db(char* dbname) {
+    // printf("%s\n", dbname);
+    const char* filename = "./data/sys.dat";
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Failed to open file: %s\n", filename);
+        return;
+    }
+
+    char line[100];
+    while (fgets(line, sizeof(line), file)) {
+        if (strstr(line, dbname) != NULL) {
+            session.db = dbname;
+            printf("Use database %s\n", session.db);
+            fclose(file);
+            return;
+        }
+    }
+
+    printf("Database %s does not exist\n", dbname);
+    fclose(file);
+}
+
+int check_use_db() {
+    if (session.db == NULL) {
+        printf("have not use database\n");
+        return 0;
+    }
+    return 1;
+}
+
+void do_create_table(struct CreateTable* create_table_ctx) {
+    if (!check_use_db()) {
+        return;
+    }
+
+    char *db = session.db;
+
+    FILE *file = NULL;
+    char filepath[100];
+    
+    // 构建文件路径
+    sprintf(filepath, "./data/%s/%s.txt", db, create_table_ctx->table);
+
+    // 检查文件是否存在
+    if (check_file_exists(filepath)) {
+        printf("%s already exist\n", create_table_ctx->table);
+        return;
+    }
+    
+    // 创建表文件
+    create_file(filepath);
+
+    sprintf(filepath, "./data/%s/sys.dat", db);
+
+    // 打开文件以追加方式写入
+    file = fopen(filepath, "a");
+
+    if (file == NULL) {
+        printf("无法打开文件%s\n", filepath);
+        return;
+    }
+
+    // 遍历字段定义链表
+    struct CreateFields *curr_field = create_table_ctx->fdef;
+    
+    int i = 1;
+    while (curr_field != NULL) {
+        struct CreateField *field = curr_field->fdef;
+
+        // 写入表名、字段名、类型和长度到文件
+        if (field->type == 0) { //char
+            fprintf(file, "%s %d %s char %d\n",
+                create_table_ctx->table, i, field->field, field->length);
+        } else if (field->type == 1) { //int
+            fprintf(file, "%s %d %s int\n",
+                create_table_ctx->table, i, field->field);
+        }
+
+        ++i;
+        curr_field = curr_field->next_fdef;
+    }
+    
+    // 关闭文件
+    fclose(file);
+    printf("create table success\n");
+}
+
+int check_file_exists(const char *filepath) {
+    FILE *file = fopen(filepath, "r");
+    if (file != NULL) {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+void create_file(const char *filepath) {
+    FILE *file = fopen(filepath, "w");
+    if (file != NULL) {
+        fclose(file);
+    } else {
+        printf("无法创建%s\n", filepath);
+    }
+}
+
+void show_tables() {
+    if (!check_use_db()) {
+        return;
+    }
+
+    char *db = session.db;
+
+    char dirpath[100];
+    sprintf(dirpath, "./data/%s", db);
+
+    DIR *dir = opendir(dirpath);
+    if (dir == NULL) {
+        printf("无法打开目录：%s\n", dirpath);
+        return;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        // DT_REG:常规文件
+        if (entry->d_type == DT_REG && strstr(entry->d_name, ".txt") != NULL) {
+            // 使用 strtok 分割文件名,获取前面部分
+            char *filename = strtok(entry->d_name, ".");
+            printf("%s\n", filename);
+        }
+    }
+
+    closedir(dir);
+}
+
+void drop_table(char* table) {
+    if (!check_use_db()) {
+        return;
+    }
+    char *db = session.db; // 假设数据库名称为 your_database_name
+    
+    // 构建文件路径
+    char table_filepath[100];
+    sprintf(table_filepath, "./data/%s/%s.txt", db, table);
+    
+    // 删除表文件
+    if (remove(table_filepath) != 0) {
+        printf("无法删除表文件：%s\n", table_filepath);
+        return;
+    }
+
+    // 删除 sys.dat 相关信息
+    char sysdat_filepath[100];
+    sprintf(sysdat_filepath, "./data/%s/sys.dat", db);
+    
+    FILE *sysdat_file = fopen(sysdat_filepath, "r");
+    if (sysdat_file == NULL) {
+        printf("无法打开 sys.dat 文件\n");
+        return;
+    }
+    
+    // 创建临时文件
+    char temp_filepath[100];
+    sprintf(temp_filepath, "./data/%s/sys_temp.dat", db);
+    
+    FILE *temp_file = fopen(temp_filepath, "w");
+    if (temp_file == NULL) {
+        printf("无法创建临时文件\n");
+        fclose(sysdat_file);
+        return;
+    }
+    
+    char line[256];
+    char table_prefix[50];
+    sprintf(table_prefix, "%s", table);
+    
+    // 遍历 sys.dat 文件的每一行
+    while (fgets(line, sizeof(line), sysdat_file)) {
+        // 比较两个字符串的前缀部分是否相等
+        if (strncmp(line, table_prefix, strlen(table_prefix)) != 0) {
+            // 将不属于要删除的表的行写入临时文件
+            fputs(line, temp_file);
+        }
+    }
+    
+    fclose(sysdat_file);
+    fclose(temp_file);
+
+    // 删除原 sys.dat 文件
+    if (remove(sysdat_filepath) != 0) {
+        printf("无法删除 sys.dat 文件\n");
+        return;
+    }
+    
+    // 重命名临时文件为 sys.dat
+    if (rename(temp_filepath, sysdat_filepath) != 0) {
+        printf("无法重命名临时文件\n");
+        return;
+    }
+    
+    printf("已成功删除表：%s\n", table);
+}
 
 int main()
 {
-    printf("> "); 
+    session.db = NULL;
     yyparse();
-    return 0;
+	return 0;
 }
 
 int yyerror(const char *s, ...)

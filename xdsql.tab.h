@@ -92,7 +92,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 67 "xdsql.y" /* yacc.c:1921  */
+#line 93 "xdsql.y" /* yacc.c:1921  */
 
     int intval;
     double dval;
@@ -100,8 +100,13 @@ union YYSTYPE
     struct CreateField *create_field; //字段定义
     struct CreateFields *create_fields; //字段定义列表
     struct CreateTable *create_table; //整个create语句
+    struct FieldValueList* filed_value_list; //插入字段的值
+    struct FieldList* field_list; //插入字段的字段名
+    struct InsertRecord *insert_record; //插入sql语句
+    struct TableMetaData* table_meta_data; //table元数据
+    struct Expr* _expr;
 
-#line 105 "xdsql.tab.h" /* yacc.c:1921  */
+#line 110 "xdsql.tab.h" /* yacc.c:1921  */
 };
 
 typedef union YYSTYPE YYSTYPE;

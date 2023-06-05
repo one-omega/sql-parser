@@ -5,3 +5,10 @@ https://blog.csdn.net/CrazyHeroZK/article/details/87359818
 bison -d xdsql.y
 flex -i xdsql.l
 cc xdsql.tab.c lex.yy.c -lfl
+
+
+enum {
+    CHAR = 0;
+    INT = 1;
+    IDENTIFIER = 2;
+}

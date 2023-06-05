@@ -886,7 +886,7 @@ case 9:
 YY_RULE_SETUP
 #line 73 "xdsql.l"
 {
-										printf("识别INSERT\n");
+										// printf("识别INSERT\n");
 										return INSERT;
 									}
 	YY_BREAK
@@ -894,7 +894,7 @@ case 10:
 YY_RULE_SETUP
 #line 77 "xdsql.l"
 {
-										printf("识别INTO\n");
+										// printf("识别INTO\n");
 										return INTO;
 									}
 	YY_BREAK
@@ -902,7 +902,7 @@ case 11:
 YY_RULE_SETUP
 #line 81 "xdsql.l"
 {
-										printf("识别VALUES\n");
+										// printf("识别VALUES\n");
 										return VALUES;
 									}
 	YY_BREAK

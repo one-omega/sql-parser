@@ -132,7 +132,33 @@ void show_tables();
 /* drop table */
 void drop_table(char* table);
 
-#line 136 "xdsql.tab.c" /* yacc.c:337  */
+/*
+insert sql
+*/
+typedef struct Expr {
+    int type;
+    char* strval;
+    int intval;
+} Expr;
+typedef struct FieldList {
+    char* field_name;
+    struct FieldList* next;
+} FieldList;
+typedef struct FieldValueList {
+    Expr* expr;
+    struct FieldValueList* next;
+} FieldValueList;
+typedef struct TableMetaData {
+    char* table_name; //表名称
+    FieldList* field_list;
+} TableMetaData;
+typedef struct InsertRecord {
+	TableMetaData *table_meta_data;
+	FieldValueList *val_list;
+} InsertRecord;
+void insert_rows(InsertRecord* insert_record);
+
+#line 162 "xdsql.tab.c" /* yacc.c:337  */
 # ifndef YY_NULLPTR
 #  if defined __cplusplus
 #   if 201103L <= __cplusplus
@@ -213,7 +239,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 67 "xdsql.y" /* yacc.c:352  */
+#line 93 "xdsql.y" /* yacc.c:352  */
 
     int intval;
     double dval;
@@ -221,8 +247,13 @@ union YYSTYPE
     struct CreateField *create_field; //字段定义
     struct CreateFields *create_fields; //字段定义列表
     struct CreateTable *create_table; //整个create语句
+    struct FieldValueList* filed_value_list; //插入字段的值
+    struct FieldList* field_list; //插入字段的字段名
+    struct InsertRecord *insert_record; //插入sql语句
+    struct TableMetaData* table_meta_data; //table元数据
+    struct Expr* _expr;
 
-#line 226 "xdsql.tab.c" /* yacc.c:352  */
+#line 257 "xdsql.tab.c" /* yacc.c:352  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -529,12 +560,12 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   102,   102,   103,   106,   107,   108,   109,   110,   111,
-     112,   113,   114,   117,   124,   131,   138,   144,   148,   149,
-     152,   165,   175,   191,   204,   213,   219,   225,   229,   235,
-     236,   239,   245,   246,   249,   250,   251,   253,   254,   255,
-     256,   257,   260,   261,   264,   265,   266,   267,   268,   271,
-     272,   278,   284,   290,   291
+       0,   137,   137,   138,   141,   142,   143,   144,   145,   146,
+     147,   148,   151,   158,   165,   172,   178,   182,   183,   184,
+     190,   203,   213,   229,   242,   251,   257,   263,   280,   291,
+     301,   314,   320,   321,   324,   331,   338,   346,   347,   348,
+     349,   350,   353,   364,   377,   378,   379,   380,   381,   384,
+     385,   391,   397,   403,   404
 };
 #endif
 
@@ -552,7 +583,7 @@ static const char *const yytname[] =
   "stmt_list", "stmt", "create_db_stmt", "drop_db_stmt", "use_db_stmt",
   "show_dbs_stmt", "table_stmt", "create_table_stmt", "column_def_list",
   "column_def", "drop_table_stmt", "show_tables_stmt", "insert_stmt",
-  "identifier_list", "select_stmt", "select_list", "term", "expr",
+  "field_name_list", "select_stmt", "select_list", "term", "expr",
   "term_list", "expr_list", "where_clause", "delete_stmt", "update_stmt",
   "update_list", YY_NULLPTR
 };
@@ -605,10 +636,10 @@ static const yytype_int8 yypact[] =
 static const yytype_uint8 yydefact[] =
 {
        2,     0,     1,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     4,     5,     6,     7,     8,    17,    19,    18,
-       9,    10,    11,    12,     0,     0,    16,    26,     0,     0,
-      15,     0,    36,    35,    34,    32,     0,    42,    33,     0,
-       0,     3,    13,     0,    14,    25,     0,     0,     0,    49,
+       0,     0,     4,     5,     6,     7,     8,    16,    18,    17,
+      19,     9,    10,    11,     0,     0,    15,    26,     0,     0,
+      14,     0,    36,    35,    34,    32,     0,    42,    33,     0,
+       0,     3,    12,     0,    13,    25,     0,     0,     0,    49,
        0,     0,     0,     0,    29,    49,    43,     0,    51,     0,
       49,     0,     0,    21,     0,     0,     0,    31,     0,     0,
       37,    44,    50,     0,     0,    52,     0,    24,     0,    20,
@@ -689,7 +720,7 @@ static const yytype_uint8 yystos[] =
 static const yytype_uint8 yyr1[] =
 {
        0,    42,    43,    43,    44,    44,    44,    44,    44,    44,
-      44,    44,    44,    45,    46,    47,    48,    49,    49,    49,
+      44,    44,    45,    46,    47,    48,    49,    49,    49,    49,
       50,    51,    51,    52,    52,    53,    54,    55,    55,    56,
       56,    57,    58,    58,    59,    59,    59,    60,    60,    60,
       60,    60,    61,    61,    62,    62,    62,    62,    62,    63,
@@ -700,7 +731,7 @@ static const yytype_uint8 yyr1[] =
 static const yytype_uint8 yyr2[] =
 {
        0,     2,     0,     3,     1,     1,     1,     1,     1,     1,
-       1,     1,     1,     3,     3,     2,     2,     1,     1,     1,
+       1,     1,     3,     3,     2,     2,     1,     1,     1,     1,
        6,     1,     3,     5,     2,     3,     2,    10,     7,     1,
        3,     5,     1,     1,     1,     1,     1,     1,     3,     3,
        3,     3,     1,     3,     1,     3,     3,     2,     3,     0,
@@ -1389,51 +1420,59 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-        case 13:
-#line 118 "xdsql.y" /* yacc.c:1652  */
+        case 12:
+#line 152 "xdsql.y" /* yacc.c:1652  */
     {
     char* dbname = (yyvsp[0].strval);
     create_db(dbname);
 }
-#line 1399 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1430 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
-  case 14:
-#line 125 "xdsql.y" /* yacc.c:1652  */
+  case 13:
+#line 159 "xdsql.y" /* yacc.c:1652  */
     {
     char* dbname = (yyvsp[0].strval);
     drop_db(dbname);
 }
-#line 1408 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1439 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
-  case 15:
-#line 132 "xdsql.y" /* yacc.c:1652  */
+  case 14:
+#line 166 "xdsql.y" /* yacc.c:1652  */
     {
     char* dbname = (yyvsp[0].strval);
     use_db(dbname);
 }
-#line 1417 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1448 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
-  case 16:
-#line 139 "xdsql.y" /* yacc.c:1652  */
+  case 15:
+#line 173 "xdsql.y" /* yacc.c:1652  */
     {
     show_db();
 }
-#line 1425 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1456 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
-  case 17:
-#line 145 "xdsql.y" /* yacc.c:1652  */
+  case 16:
+#line 179 "xdsql.y" /* yacc.c:1652  */
     {
     do_create_table((yyvsp[0].create_table));
 }
-#line 1433 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1464 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 19:
+#line 185 "xdsql.y" /* yacc.c:1652  */
+    {
+    insert_rows((yyvsp[0].insert_record));
+}
+#line 1472 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 20:
-#line 153 "xdsql.y" /* yacc.c:1652  */
+#line 191 "xdsql.y" /* yacc.c:1652  */
     {
     // struct CreateTable { /*create语法树根节点*/
     //     char *table; //基本表名称
@@ -1444,11 +1483,11 @@ yyreduce:
     (yyval.create_table)->fdef = (yyvsp[-1].create_fields);
     // printf_red("Create table with columns\n");
 }
-#line 1448 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1487 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 21:
-#line 166 "xdsql.y" /* yacc.c:1652  */
+#line 204 "xdsql.y" /* yacc.c:1652  */
     {
     // struct CreateFields { /*create语句中的字段定义*/
     //     struct CreateField *fdef;
@@ -1458,11 +1497,11 @@ yyreduce:
     (yyval.create_fields)->fdef = (yyvsp[0].create_field);
     (yyval.create_fields)->next_fdef = NULL;
 }
-#line 1462 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1501 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 22:
-#line 176 "xdsql.y" /* yacc.c:1652  */
+#line 214 "xdsql.y" /* yacc.c:1652  */
     {
     CreateFields* fields = (yyvsp[-2].create_fields);
 
@@ -1476,11 +1515,11 @@ yyreduce:
 
     (yyval.create_fields) = fields;
 }
-#line 1480 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1519 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 23:
-#line 192 "xdsql.y" /* yacc.c:1652  */
+#line 230 "xdsql.y" /* yacc.c:1652  */
     {
     // struct CreateField {
     //     char *field; //字段名称
@@ -1493,86 +1532,196 @@ yyreduce:
     tmp->length = (yyvsp[-1].dval);
     (yyval.create_field) = tmp;
 }
-#line 1497 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1536 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 24:
-#line 205 "xdsql.y" /* yacc.c:1652  */
+#line 243 "xdsql.y" /* yacc.c:1652  */
     {
     struct CreateField *tmp = (CreateField*)malloc(sizeof(struct CreateField));
     tmp->field = (yyvsp[-1].strval);
     tmp->type = (yyvsp[0].intval);
     (yyval.create_field) = tmp;
 }
-#line 1508 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1547 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 25:
-#line 214 "xdsql.y" /* yacc.c:1652  */
+#line 252 "xdsql.y" /* yacc.c:1652  */
     {
     drop_table((yyvsp[0].strval));
 }
-#line 1516 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1555 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 26:
-#line 220 "xdsql.y" /* yacc.c:1652  */
+#line 258 "xdsql.y" /* yacc.c:1652  */
     {
     show_tables();
 }
-#line 1524 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1563 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 27:
-#line 226 "xdsql.y" /* yacc.c:1652  */
+#line 264 "xdsql.y" /* yacc.c:1652  */
     {
-                printf_red("Insert into with values\n");
-            }
-#line 1532 "xdsql.tab.c" /* yacc.c:1652  */
+    // typedef struct TableMetaData {
+    //     char* table_name; //表名称
+    //     FieldList* field_list;
+    // } TableMetaData;
+    // struct InsertRecord{
+    //     TableMetaData *table_meta_data;
+    //     struct FieldValueList *val_list;
+    // };
+    (yyval.insert_record) = malloc(sizeof(struct InsertRecord));
+    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    table_meta_data->table_name = (yyvsp[-7].strval);
+    table_meta_data->field_list = (yyvsp[-5].field_list);
+    (yyval.insert_record)->table_meta_data = table_meta_data;
+    (yyval.insert_record)->val_list = (yyvsp[-1].filed_value_list);
+}
+#line 1584 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 28:
-#line 230 "xdsql.y" /* yacc.c:1652  */
+#line 281 "xdsql.y" /* yacc.c:1652  */
     {
-                printf_red("Insert into with all values\n");
-            }
-#line 1540 "xdsql.tab.c" /* yacc.c:1652  */
+    (yyval.insert_record) = malloc(sizeof(struct InsertRecord));
+    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    table_meta_data->table_name = (yyvsp[-4].strval);
+    table_meta_data->field_list = NULL;
+    (yyval.insert_record)->table_meta_data = table_meta_data;
+    (yyval.insert_record)->val_list = (yyvsp[-1].filed_value_list);
+}
+#line 1597 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 29:
+#line 292 "xdsql.y" /* yacc.c:1652  */
+    {
+    // typedef struct FieldList {
+    //     char* field_name;
+    //     struct FieldList* next;
+    // } FieldList;
+    (yyval.field_list) = (struct FieldList*) malloc(sizeof(FieldList));
+    (yyval.field_list)->field_name = (yyvsp[0].strval);
+    (yyval.field_list)->next = NULL;
+}
+#line 1611 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 30:
+#line 302 "xdsql.y" /* yacc.c:1652  */
+    {
+    FieldList* list = (yyvsp[-2].field_list);
+    FieldList* tmp = list;
+	while (tmp->next != NULL) tmp = tmp->next;
+	struct FieldList* next_field = (struct FieldList*) malloc(sizeof(FieldList));
+	next_field->field_name = (yyvsp[0].strval);
+	next_field->next = NULL;
+	tmp->next = next_field;
+	(yyval.field_list) = list;
+}
+#line 1626 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 31:
-#line 240 "xdsql.y" /* yacc.c:1652  */
+#line 315 "xdsql.y" /* yacc.c:1652  */
     {
                 printf_red("Select from with columns\n");
             }
-#line 1548 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1634 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 34:
+#line 325 "xdsql.y" /* yacc.c:1652  */
+    {
+    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    _expr->type = 1;
+    _expr->intval = (yyvsp[0].dval);
+    (yyval._expr) = _expr;
+}
+#line 1645 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 35:
+#line 332 "xdsql.y" /* yacc.c:1652  */
+    {
+    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    _expr->type = 0;
+    _expr->strval = (yyvsp[0].strval);
+    (yyval._expr) = _expr;
+}
+#line 1656 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 36:
+#line 339 "xdsql.y" /* yacc.c:1652  */
+    {
+    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    _expr->type = 2;
+    _expr->strval = (yyvsp[0].strval);
+    (yyval._expr) = _expr;
+}
+#line 1667 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 42:
+#line 354 "xdsql.y" /* yacc.c:1652  */
+    {
+    // typedef struct FieldValueList {
+    //     Expr* expr;
+    //     struct FieldValueList* next;
+    // } FieldValueList;
+    FieldValueList* value_list = (FieldValueList*) malloc(sizeof(FieldValueList));
+    value_list->expr = (yyvsp[0]._expr);
+    value_list->next = NULL;
+    (yyval.filed_value_list) = value_list;
+}
+#line 1682 "xdsql.tab.c" /* yacc.c:1652  */
+    break;
+
+  case 43:
+#line 365 "xdsql.y" /* yacc.c:1652  */
+    {
+    FieldValueList* value_list = (yyvsp[-2].filed_value_list);
+    FieldValueList* temp = value_list;
+    while (temp->next != NULL) temp = temp->next;
+    FieldValueList* next_value = (FieldValueList*) malloc(sizeof(FieldValueList));
+    next_value->expr = (yyvsp[0]._expr);
+    next_value->next = NULL;
+    temp->next = next_value;
+    (yyval.filed_value_list) = value_list;
+}
+#line 1697 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 50:
-#line 273 "xdsql.y" /* yacc.c:1652  */
+#line 386 "xdsql.y" /* yacc.c:1652  */
     {
                 printf_red("where clause\n");
             }
-#line 1556 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1705 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 51:
-#line 279 "xdsql.y" /* yacc.c:1652  */
+#line 392 "xdsql.y" /* yacc.c:1652  */
     {
                 printf_red("Delete from\n");
             }
-#line 1564 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1713 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
   case 52:
-#line 285 "xdsql.y" /* yacc.c:1652  */
+#line 398 "xdsql.y" /* yacc.c:1652  */
     {
                 printf_red("Update table with values\n");
             }
-#line 1572 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1721 "xdsql.tab.c" /* yacc.c:1652  */
     break;
 
 
-#line 1576 "xdsql.tab.c" /* yacc.c:1652  */
+#line 1725 "xdsql.tab.c" /* yacc.c:1652  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1803,7 +1952,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 294 "xdsql.y" /* yacc.c:1918  */
+#line 407 "xdsql.y" /* yacc.c:1918  */
 
 void create_db(char* dbname)
 {
@@ -2135,6 +2284,124 @@ void drop_table(char* table) {
     
     printf("已成功删除表：%s\n", table);
 }
+
+void insert_rows(InsertRecord* insert_record) {
+    if (!check_use_db()) {
+        return;
+    }
+    char* db = session.db;
+    // 获取表名
+    char* table_name = insert_record->table_meta_data->table_name;
+
+    // 构建 sys.dat 文件路径
+    char sys_dat_path[100];
+    snprintf(sys_dat_path, sizeof(sys_dat_path), "./data/%s/sys.dat", db);
+
+    // 打开 sys.dat 文件
+    FILE* sys_dat_file = fopen(sys_dat_path, "r");
+    if (sys_dat_file == NULL) {
+        printf("Failed to open sys.dat\n");
+        return;
+    }
+
+    // 查找表名对应的字段信息
+    char line[100];
+
+    // 打开表数据文件
+    char table_data_path[100];
+    snprintf(table_data_path, sizeof(table_data_path), "./data/%s/%s.txt", db, table_name);
+    FILE* table_data_file = NULL;
+    if (access(table_data_path, 0) == 0) {
+        table_data_file = fopen(table_data_path, "a");
+    } else {
+        printf("table %s not found\n", table_name);
+        return;
+    }
+
+    FieldList* field_list = insert_record->table_meta_data->field_list;
+    FieldValueList* value_list = insert_record->val_list;
+    while (fgets(line, sizeof(line), sys_dat_file)) {
+        // printf("%s", line);
+        // 解析每行记录的字段信息
+        char current_table_name[100];
+        int index;
+        char field_name[100];
+        char type[10];
+        int length;
+
+        sscanf(line, "%s %d %s %s %d", current_table_name, &index, field_name, type, &length);
+
+        // 判断是否为目标表名的字段信息
+        if (strcmp(current_table_name, table_name) == 0) {
+
+            if (field_list == NULL) {
+                if (value_list->expr->type == 0) { // char 类型
+                    // 截断字符串，确保长度不超过定义的字段长度
+                    if (strlen(value_list->expr->strval) > length) {
+                        value_list->expr->strval[length] = '\0';
+                    }
+
+                    // 写入到表数据文件中
+                    fprintf(table_data_file, "%s ", value_list->expr->strval);
+                } else if (value_list->expr->type == 1) { // int 类型
+                    // 写入到表数据文件中
+                    fprintf(table_data_file, "%d ", value_list->expr->intval);
+                }
+                value_list = value_list->next;
+                continue;
+            }
+            // 创建一个临时的 FieldList 指针，用于遍历 field_list
+            FieldList* temp_field_list = field_list;
+            FieldValueList* temp_value_list = value_list;
+
+            // 遍历字段列表
+            int field_found = 0;
+            while (temp_field_list != NULL) {
+                // 获取字段名
+                char* _field_name = temp_field_list->field_name;
+
+                if (strcmp(field_name, _field_name) != 0) {
+                    temp_field_list = temp_field_list->next;
+                    temp_value_list = temp_value_list->next;
+                    continue;
+                }
+                field_found = 1;
+                // 检查 value_list 是否为空
+                if (temp_value_list == NULL) {
+                    fprintf(table_data_file, "NULL ");
+                } else {
+                    // 获取当前字段值的表达式
+                    Expr* expr = temp_value_list->expr;
+
+                    // 检查表达式的类型并进行相应处理
+                    if (expr->type == 0) { // char 类型
+                        // 截断字符串，确保长度不超过定义的字段长度
+                        if (strlen(expr->strval) > length) {
+                            expr->strval[length] = '\0';
+                        }
+
+                        // 写入到表数据文件中
+                        fprintf(table_data_file, "%s ", expr->strval);
+                    } else if (expr->type == 1) { // int 类型
+                        // 写入到表数据文件中
+                        fprintf(table_data_file, "%d ", expr->intval);
+                    }
+                }
+                break;
+            }
+            if (field_found == 0) {
+                fprintf(table_data_file, "NULL ");
+            }
+        }
+    }
+    fprintf(table_data_file, "\n");
+    fclose(table_data_file);
+
+    // 关闭 sys.dat 文件
+    fclose(sys_dat_file);
+    printf("insert into %s success\n", table_name);
+}
+
 
 int main()
 {

@@ -62,6 +62,32 @@ void do_create_table(struct CreateTable* create_table_ctx);
 void show_tables();
 /* drop table */
 void drop_table(char* table);
+
+/*
+insert sql
+*/
+typedef struct Expr {
+    int type;
+    char* strval;
+    int intval;
+} Expr;
+typedef struct FieldList {
+    char* field_name;
+    struct FieldList* next;
+} FieldList;
+typedef struct FieldValueList {
+    Expr* expr;
+    struct FieldValueList* next;
+} FieldValueList;
+typedef struct TableMetaData {
+    char* table_name; //表名称
+    FieldList* field_list;
+} TableMetaData;
+typedef struct InsertRecord {
+	TableMetaData *table_meta_data;
+	FieldValueList *val_list;
+} InsertRecord;
+void insert_rows(InsertRecord* insert_record);
 %}
 
 %union {
@@ -71,6 +97,11 @@ void drop_table(char* table);
     struct CreateField *create_field; //字段定义
     struct CreateFields *create_fields; //字段定义列表
     struct CreateTable *create_table; //整个create语句
+    struct FieldValueList* filed_value_list; //插入字段的值
+    struct FieldList* field_list; //插入字段的字段名
+    struct InsertRecord *insert_record; //插入sql语句
+    struct TableMetaData* table_meta_data; //table元数据
+    struct Expr* _expr;
 }
 
 %token <strval> IDENTIFIER
@@ -97,6 +128,10 @@ void drop_table(char* table);
 %type <create_table> create_table_stmt
 %type <create_field> column_def
 %type <create_fields> column_def_list
+%type <field_list> field_name_list
+%type <filed_value_list> term_list
+%type <insert_record> insert_stmt
+%type <_expr> term
 %%
 
 stmt_list: /* empty */
@@ -108,7 +143,6 @@ stmt: create_db_stmt
     | use_db_stmt
     | show_dbs_stmt
     | table_stmt
-    | insert_stmt
     | select_stmt
     | delete_stmt
     | update_stmt
@@ -147,6 +181,10 @@ table_stmt: create_table_stmt
 }
 | show_tables_stmt
 | drop_table_stmt
+| insert_stmt
+{
+    insert_rows($1);
+}
 ;
 
 create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
@@ -222,21 +260,58 @@ show_tables_stmt: SHOW TABLES
 }
 ;
 
-insert_stmt: INSERT INTO IDENTIFIER LPAREN identifier_list RPAREN VALUES LPAREN term_list RPAREN
-            {
-                printf_red("Insert into with values\n");
-            }
-            | INSERT INTO IDENTIFIER VALUES LPAREN term_list RPAREN
-            {
-                printf_red("Insert into with all values\n");
-            }
-            ;
+insert_stmt: INSERT INTO IDENTIFIER LPAREN field_name_list RPAREN VALUES LPAREN term_list RPAREN
+{
+    // typedef struct TableMetaData {
+    //     char* table_name; //表名称
+    //     FieldList* field_list;
+    // } TableMetaData;
+    // struct InsertRecord{
+    //     TableMetaData *table_meta_data;
+    //     struct FieldValueList *val_list;
+    // };
+    $$ = malloc(sizeof(struct InsertRecord));
+    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    table_meta_data->table_name = $3;
+    table_meta_data->field_list = $5;
+    $$->table_meta_data = table_meta_data;
+    $$->val_list = $9;
+}
+| INSERT INTO IDENTIFIER VALUES LPAREN term_list RPAREN
+{
+    $$ = malloc(sizeof(struct InsertRecord));
+    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    table_meta_data->table_name = $3;
+    table_meta_data->field_list = NULL;
+    $$->table_meta_data = table_meta_data;
+    $$->val_list = $6;
+}
+;
 
-identifier_list: IDENTIFIER
-             | identifier_list COMMA IDENTIFIER
-             ;
+field_name_list: IDENTIFIER
+{
+    // typedef struct FieldList {
+    //     char* field_name;
+    //     struct FieldList* next;
+    // } FieldList;
+    $$ = (struct FieldList*) malloc(sizeof(FieldList));
+    $$->field_name = $1;
+    $$->next = NULL;
+}
+| field_name_list COMMA IDENTIFIER
+{
+    FieldList* list = $1;
+    FieldList* tmp = list;
+	while (tmp->next != NULL) tmp = tmp->next;
+	struct FieldList* next_field = (struct FieldList*) malloc(sizeof(FieldList));
+	next_field->field_name = $3;
+	next_field->next = NULL;
+	tmp->next = next_field;
+	$$ = list;
+}
+;
 
-select_stmt: SELECT select_list FROM identifier_list where_clause
+select_stmt: SELECT select_list FROM field_name_list where_clause
             {
                 printf_red("Select from with columns\n");
             }
@@ -247,8 +322,26 @@ select_list: SELECT_ALL
            ;
 
 term: NUMBER
-    | STRING
-    | IDENTIFIER
+{
+    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    _expr->type = 1;
+    _expr->intval = $1;
+    $$ = _expr;
+}
+| STRING
+{
+    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    _expr->type = 0;
+    _expr->strval = $1;
+    $$ = _expr;
+}
+| IDENTIFIER
+{
+    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    _expr->type = 2;
+    _expr->strval = $1;
+    $$ = _expr;
+}
 
 expr: term
     | term EQUAL term
@@ -258,8 +351,28 @@ expr: term
     ;
 
 term_list: term
-         | term_list COMMA term
-         ;
+{
+    // typedef struct FieldValueList {
+    //     Expr* expr;
+    //     struct FieldValueList* next;
+    // } FieldValueList;
+    FieldValueList* value_list = (FieldValueList*) malloc(sizeof(FieldValueList));
+    value_list->expr = $1;
+    value_list->next = NULL;
+    $$ = value_list;
+}
+| term_list COMMA term
+{
+    FieldValueList* value_list = $1;
+    FieldValueList* temp = value_list;
+    while (temp->next != NULL) temp = temp->next;
+    FieldValueList* next_value = (FieldValueList*) malloc(sizeof(FieldValueList));
+    next_value->expr = $3;
+    next_value->next = NULL;
+    temp->next = next_value;
+    $$ = value_list;
+}
+;
 
 expr_list: expr
          | expr_list AND expr_list
@@ -622,6 +735,124 @@ void drop_table(char* table) {
     
     printf("已成功删除表：%s\n", table);
 }
+
+void insert_rows(InsertRecord* insert_record) {
+    if (!check_use_db()) {
+        return;
+    }
+    char* db = session.db;
+    // 获取表名
+    char* table_name = insert_record->table_meta_data->table_name;
+
+    // 构建 sys.dat 文件路径
+    char sys_dat_path[100];
+    snprintf(sys_dat_path, sizeof(sys_dat_path), "./data/%s/sys.dat", db);
+
+    // 打开 sys.dat 文件
+    FILE* sys_dat_file = fopen(sys_dat_path, "r");
+    if (sys_dat_file == NULL) {
+        printf("Failed to open sys.dat\n");
+        return;
+    }
+
+    // 查找表名对应的字段信息
+    char line[100];
+
+    // 打开表数据文件
+    char table_data_path[100];
+    snprintf(table_data_path, sizeof(table_data_path), "./data/%s/%s.txt", db, table_name);
+    FILE* table_data_file = NULL;
+    if (access(table_data_path, 0) == 0) {
+        table_data_file = fopen(table_data_path, "a");
+    } else {
+        printf("table %s not found\n", table_name);
+        return;
+    }
+
+    FieldList* field_list = insert_record->table_meta_data->field_list;
+    FieldValueList* value_list = insert_record->val_list;
+    while (fgets(line, sizeof(line), sys_dat_file)) {
+        // printf("%s", line);
+        // 解析每行记录的字段信息
+        char current_table_name[100];
+        int index;
+        char field_name[100];
+        char type[10];
+        int length;
+
+        sscanf(line, "%s %d %s %s %d", current_table_name, &index, field_name, type, &length);
+
+        // 判断是否为目标表名的字段信息
+        if (strcmp(current_table_name, table_name) == 0) {
+
+            if (field_list == NULL) {
+                if (value_list->expr->type == 0) { // char 类型
+                    // 截断字符串，确保长度不超过定义的字段长度
+                    if (strlen(value_list->expr->strval) > length) {
+                        value_list->expr->strval[length] = '\0';
+                    }
+
+                    // 写入到表数据文件中
+                    fprintf(table_data_file, "%s ", value_list->expr->strval);
+                } else if (value_list->expr->type == 1) { // int 类型
+                    // 写入到表数据文件中
+                    fprintf(table_data_file, "%d ", value_list->expr->intval);
+                }
+                value_list = value_list->next;
+                continue;
+            }
+            // 创建一个临时的 FieldList 指针，用于遍历 field_list
+            FieldList* temp_field_list = field_list;
+            FieldValueList* temp_value_list = value_list;
+
+            // 遍历字段列表
+            int field_found = 0;
+            while (temp_field_list != NULL) {
+                // 获取字段名
+                char* _field_name = temp_field_list->field_name;
+
+                if (strcmp(field_name, _field_name) != 0) {
+                    temp_field_list = temp_field_list->next;
+                    temp_value_list = temp_value_list->next;
+                    continue;
+                }
+                field_found = 1;
+                // 检查 value_list 是否为空
+                if (temp_value_list == NULL) {
+                    fprintf(table_data_file, "NULL ");
+                } else {
+                    // 获取当前字段值的表达式
+                    Expr* expr = temp_value_list->expr;
+
+                    // 检查表达式的类型并进行相应处理
+                    if (expr->type == 0) { // char 类型
+                        // 截断字符串，确保长度不超过定义的字段长度
+                        if (strlen(expr->strval) > length) {
+                            expr->strval[length] = '\0';
+                        }
+
+                        // 写入到表数据文件中
+                        fprintf(table_data_file, "%s ", expr->strval);
+                    } else if (expr->type == 1) { // int 类型
+                        // 写入到表数据文件中
+                        fprintf(table_data_file, "%d ", expr->intval);
+                    }
+                }
+                break;
+            }
+            if (field_found == 0) {
+                fprintf(table_data_file, "NULL ");
+            }
+        }
+    }
+    fprintf(table_data_file, "\n");
+    fclose(table_data_file);
+
+    // 关闭 sys.dat 文件
+    fclose(sys_dat_file);
+    printf("insert into %s success\n", table_name);
+}
+
 
 int main()
 {

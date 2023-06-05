@@ -71,15 +71,15 @@ int int
 										return TABLES;
 									}
 {insert}					{
-										printf("识别INSERT\n");
+										// printf("识别INSERT\n");
 										return INSERT;
 									}
 {into}						{
-										printf("识别INTO\n");
+										// printf("识别INTO\n");
 										return INTO;
 									}
 {values}					{
-										printf("识别VALUES\n");
+										// printf("识别VALUES\n");
 										return VALUES;
 									}
 {select}					{

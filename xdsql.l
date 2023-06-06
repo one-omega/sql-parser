@@ -1,6 +1,7 @@
+%option noyywrap
+
 %{
-# include "xdsql.tab.h"
-extern int yyerror(const char *, ...);
+# include "xdsql.tab.hpp"
 %}
 
 /* declarations section */
@@ -94,18 +95,16 @@ int int
 										printf("识别WHERE\n");
 										return WHERE;
 									}
-{and}							{
-										printf("识别AND\n");
-										return AND;
-									}
-{or}							{
-										printf("识别OR\n");
-										return OR;
-									}
-{not}							{
-										printf("识别NOT\n");
-										return NOT;
-									}
+{and} {
+	// printf("识别AND\n");
+	yylval.intval = 'a';
+	return AND;
+}
+{or} {
+	// printf("识别OR\n");
+	yylval.intval = 'o';
+	return OR;
+}
 {delete}					{
 										printf("识别DELETE\n");
 										return DELETE;
@@ -145,10 +144,35 @@ int int
 	// printf("识别分号\n");
 	return SEMICOLON;
 }
-">" { printf("识别大于号\n"); return MORE; }
-"<" { printf("识别小于号\n"); return LESS; }
-"=" { printf("识别等于号\n"); return EQUAL; }
-"!=" { printf("识别不等于号\n"); return NOT_EQUAL; }
+"=" {
+	// printf("识别等于号\n");
+	yylval.intval = 3;
+	return EQUAL;
+}
+"!=" {
+	// printf("识别不等于号\n");
+	yylval.intval = 4;
+	return NOT_EQUAL;
+}
+"<=" {
+	yylval.intval = 7;
+	return LESS_EQUAL;
+}
+">=" {
+	yylval.intval = 8;
+	return MORE_EQUAL;
+}
+"<" {
+	// printf("识别小于号\n");
+	yylval.intval = 5;
+	return LESS;
+}
+">" {
+	// printf("识别大于号\n");
+	yylval.intval = 6;
+	return MORE;
+}
+
 "'" { printf("识别单引号\n"); return SINGLE_QUOTE; }
 "#" { printf("识别#\n"); return SELECT_ALL; }
 

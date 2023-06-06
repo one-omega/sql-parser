@@ -6,9 +6,14 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <iostream>
+#include "utils.hpp"
 #define true 1
 #define false 0
-int yyerror(const char *s, ...);
+
+void yyerror(const char *s);
+int yylex();
+int yyparse();
 
 /*
 db 相关函数
@@ -26,8 +31,6 @@ void remove_directory(const char* path);
 int check_file_exists(const char *filepath);
 void create_file(const char *filepath);
 
-extern int yylex();
-extern int yyparse();
 void printf_red(const char *s)
 {
     printf("\033[0m\033[1;31m%s\033[0m", s);
@@ -66,11 +69,6 @@ void drop_table(char* table);
 /*
 insert sql
 */
-typedef struct Expr {
-    int type;
-    char* strval;
-    int intval;
-} Expr;
 typedef struct FieldList {
     char* field_name;
     struct FieldList* next;
@@ -101,7 +99,8 @@ void insert_rows(InsertRecord* insert_record);
     struct FieldList* field_list; //插入字段的字段名
     struct InsertRecord *insert_record; //插入sql语句
     struct TableMetaData* table_meta_data; //table元数据
-    struct Expr* _expr;
+    struct Expr* _expr; //表达式:可以是一个数字,也可以是一个运算式
+    struct DeleteRecord* delete_record;
 }
 
 %token <strval> IDENTIFIER
@@ -112,15 +111,12 @@ void insert_rows(InsertRecord* insert_record);
 %token CREATE SHOW DROP USE INSERT SELECT DELETE UPDATE SET INTO FROM WHERE DATABASE DATABASES TABLE TABLES VALUES
 %token SELECT_ALL
 %token SINGLE_QUOTE COMMA LPAREN RPAREN SEMICOLON
-%token OR
-%token AND
-%token EQUAL NOT_EQUAL
-%token MORE LESS
-%token NOT
+%token <intval> OR
+%token <intval> AND
+%token <intval> EQUAL NOT_EQUAL MORE LESS MORE_EQUAL LESS_EQUAL
 
 %left OR
 %left AND
-%right NOT
 
 %left '+' '-'
 %left '*' '/'
@@ -132,6 +128,11 @@ void insert_rows(InsertRecord* insert_record);
 %type <filed_value_list> term_list
 %type <insert_record> insert_stmt
 %type <_expr> term
+%type <_expr> expr
+%type <_expr> expr_list
+%type <_expr> where_clause
+%type <delete_record> delete_stmt
+%type <intval> equal_op
 %%
 
 stmt_list: /* empty */
@@ -144,7 +145,6 @@ stmt: create_db_stmt
     | show_dbs_stmt
     | table_stmt
     | select_stmt
-    | delete_stmt
     | update_stmt
     ;
 
@@ -185,6 +185,10 @@ table_stmt: create_table_stmt
 {
     insert_rows($1);
 }
+| delete_stmt
+{
+    delete_row($1);
+}
 ;
 
 create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
@@ -193,7 +197,7 @@ create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
     //     char *table; //基本表名称
     //     struct CreateFields *fdef; //字段定义
     // };
-    $$ = malloc(sizeof(struct CreateTable));
+    $$ = (CreateTable*) malloc(sizeof(struct CreateTable));
     $$->table = $3;
     $$->fdef = $5;
     // printf_red("Create table with columns\n");
@@ -206,7 +210,7 @@ column_def_list: column_def
     //     struct CreateField *fdef;
     //     struct CreateFields *next_fdef; //下一字段
     // };
-    $$ = malloc(sizeof(struct CreateFields));
+    $$ = (CreateFields*) malloc(sizeof(struct CreateFields));
     $$->fdef = $1;
     $$->next_fdef = NULL;
 }
@@ -270,7 +274,7 @@ insert_stmt: INSERT INTO IDENTIFIER LPAREN field_name_list RPAREN VALUES LPAREN 
     //     TableMetaData *table_meta_data;
     //     struct FieldValueList *val_list;
     // };
-    $$ = malloc(sizeof(struct InsertRecord));
+    $$ = (InsertRecord*) malloc(sizeof(struct InsertRecord));
     TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
     table_meta_data->table_name = $3;
     table_meta_data->field_list = $5;
@@ -279,7 +283,7 @@ insert_stmt: INSERT INTO IDENTIFIER LPAREN field_name_list RPAREN VALUES LPAREN 
 }
 | INSERT INTO IDENTIFIER VALUES LPAREN term_list RPAREN
 {
-    $$ = malloc(sizeof(struct InsertRecord));
+    $$ = (InsertRecord*) malloc(sizeof(struct InsertRecord));
     TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
     table_meta_data->table_name = $3;
     table_meta_data->field_list = NULL;
@@ -344,11 +348,24 @@ term: NUMBER
 }
 
 expr: term
-    | term EQUAL term
-    | term NOT_EQUAL term
-    | term MORE term
-    | term LESS term
-    ;
+{
+    $$ = $1;
+}
+| term equal_op term
+{
+    $$ = (Expr*) malloc(sizeof(Expr));
+    $$->left = $1;
+    $$->type = $2;
+    $$->right = $3;
+}
+;
+
+equal_op: EQUAL { $$ = $1; }
+| NOT_EQUAL { $$ = $1; }
+| MORE { $$ = $1; }
+| LESS { $$ = $1; }
+| MORE_EQUAL { $$ = $1; }
+| LESS_EQUAL { $$ = $1; }
 
 term_list: term
 {
@@ -375,24 +392,46 @@ term_list: term
 ;
 
 expr_list: expr
-         | expr_list AND expr_list
-         | expr_list OR expr_list
-         | NOT expr_list
-         | LPAREN expr_list RPAREN
-         ;
+{
+    $$ = $1;
+}
+| expr_list AND expr_list
+{
+    $$ = (Expr*)malloc(sizeof(Expr));
+    $$->left = $1;
+    $$->type = $2;
+    $$->right = $3;
+}
+| expr_list OR expr_list
+{
+    $$ = (Expr*)malloc(sizeof(Expr));
+    $$->left = $1;
+    $$->type = $2;
+    $$->right = $3;
+}
+| LPAREN expr_list RPAREN
+{
+    $$ = $2;
+}
+;
 
 where_clause: /* empty */
-            | WHERE expr_list
-            {
-                printf_red("where clause\n");
-            }
-            ;
+{
+    $$ = NULL;
+}
+| WHERE expr_list
+{
+    $$ = $2;
+}
+;
 
 delete_stmt: DELETE FROM IDENTIFIER where_clause
-            {
-                printf_red("Delete from\n");
-            }
-            ;
+{
+    $$ = (DeleteRecord*) malloc(sizeof(DeleteRecord));
+    $$->table_name = $3;
+    $$->where_case = $4;
+}
+;
 
 update_stmt: UPDATE IDENTIFIER SET update_list where_clause
             {
@@ -825,7 +864,7 @@ void insert_rows(InsertRecord* insert_record) {
                     Expr* expr = temp_value_list->expr;
 
                     // 检查表达式的类型并进行相应处理
-                    if (expr->type == 0) { // char 类型
+                    if (expr->type == 0) { // CHAR 类型
                         // 截断字符串，确保长度不超过定义的字段长度
                         if (strlen(expr->strval) > length) {
                             expr->strval[length] = '\0';
@@ -833,7 +872,7 @@ void insert_rows(InsertRecord* insert_record) {
 
                         // 写入到表数据文件中
                         fprintf(table_data_file, "%s ", expr->strval);
-                    } else if (expr->type == 1) { // int 类型
+                    } else if (expr->type == 1) { // INT 类型
                         // 写入到表数据文件中
                         fprintf(table_data_file, "%d ", expr->intval);
                     }
@@ -853,7 +892,6 @@ void insert_rows(InsertRecord* insert_record) {
     printf("insert into %s success\n", table_name);
 }
 
-
 int main()
 {
     session.db = NULL;
@@ -861,8 +899,7 @@ int main()
 	return 0;
 }
 
-int yyerror(const char *s, ...)
+void yyerror(const char *s)
 {
     printf_red(s);
-    return -1;
 }

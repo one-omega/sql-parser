@@ -34,8 +34,8 @@
 /* Undocumented macros, especially those whose name start with YY_,
    are private implementation details.  Do not rely on them.  */
 
-#ifndef YY_YY_XDSQL_TAB_H_INCLUDED
-# define YY_YY_XDSQL_TAB_H_INCLUDED
+#ifndef YY_YY_XDSQL_TAB_HPP_INCLUDED
+# define YY_YY_XDSQL_TAB_HPP_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -83,7 +83,8 @@ extern int yydebug;
     NOT_EQUAL = 289,
     MORE = 290,
     LESS = 291,
-    NOT = 292
+    MORE_EQUAL = 292,
+    LESS_EQUAL = 293
   };
 #endif
 
@@ -92,7 +93,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 93 "xdsql.y" /* yacc.c:1921  */
+#line 91 "xdsql.y" /* yacc.c:1921  */
 
     int intval;
     double dval;
@@ -104,9 +105,10 @@ union YYSTYPE
     struct FieldList* field_list; //插入字段的字段名
     struct InsertRecord *insert_record; //插入sql语句
     struct TableMetaData* table_meta_data; //table元数据
-    struct Expr* _expr;
+    struct Expr* _expr; //表达式:可以是一个数字,也可以是一个运算式
+    struct DeleteRecord* delete_record;
 
-#line 110 "xdsql.tab.h" /* yacc.c:1921  */
+#line 112 "xdsql.tab.hpp" /* yacc.c:1921  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -119,4 +121,4 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 
-#endif /* !YY_YY_XDSQL_TAB_H_INCLUDED  */
+#endif /* !YY_YY_XDSQL_TAB_HPP_INCLUDED  */

@@ -8,6 +8,8 @@
 #include <dirent.h>
 #include <iostream>
 #include "utils.hpp"
+#include <map>
+#include <string>
 #define true 1
 #define false 0
 
@@ -22,7 +24,6 @@ void create_db(char* dbname);
 void drop_db(char* dbname);
 void show_db();
 void use_db(char* dbname);
-int check_use_db();
 
 /*
 工具函数
@@ -36,14 +37,7 @@ void printf_red(const char *s)
     printf("\033[0m\033[1;31m%s\033[0m", s);
 }
 
-/*
-一次数据库连接的信息
-*/
-typedef struct Session {
-    char* db;
-} Session;
-Session session;
-
+extern Session session;
 /*
 create table sql
 */
@@ -101,6 +95,9 @@ void insert_rows(InsertRecord* insert_record);
     struct TableMetaData* table_meta_data; //table元数据
     struct Expr* _expr; //表达式:可以是一个数字,也可以是一个运算式
     struct DeleteRecord* delete_record;
+    struct SelectRecord* select_record;
+    struct UpdateMap* _update_map;
+    struct UpdateRecord* update_record;
 }
 
 %token <strval> IDENTIFIER
@@ -111,6 +108,8 @@ void insert_rows(InsertRecord* insert_record);
 %token CREATE SHOW DROP USE INSERT SELECT DELETE UPDATE SET INTO FROM WHERE DATABASE DATABASES TABLE TABLES VALUES
 %token SELECT_ALL
 %token SINGLE_QUOTE COMMA LPAREN RPAREN SEMICOLON
+%token ADD SUB
+%token MUL DIV
 %token <intval> OR
 %token <intval> AND
 %token <intval> EQUAL NOT_EQUAL MORE LESS MORE_EQUAL LESS_EQUAL
@@ -118,8 +117,8 @@ void insert_rows(InsertRecord* insert_record);
 %left OR
 %left AND
 
-%left '+' '-'
-%left '*' '/'
+%left ADD SUB
+%left MUL DIV
 
 %type <create_table> create_table_stmt
 %type <create_field> column_def
@@ -133,6 +132,10 @@ void insert_rows(InsertRecord* insert_record);
 %type <_expr> where_clause
 %type <delete_record> delete_stmt
 %type <intval> equal_op
+%type <select_record> select_stmt;
+%type <field_list> select_field_list;
+%type <_update_map> update_list;
+%type <update_record> update_stmt;
 %%
 
 stmt_list: /* empty */
@@ -144,8 +147,6 @@ stmt: create_db_stmt
     | use_db_stmt
     | show_dbs_stmt
     | table_stmt
-    | select_stmt
-    | update_stmt
     ;
 
 create_db_stmt: CREATE DATABASE IDENTIFIER
@@ -189,6 +190,14 @@ table_stmt: create_table_stmt
 {
     delete_row($1);
 }
+| select_stmt
+{
+    select_rows($1);
+}
+| update_stmt
+{
+    update_rows($1);
+}
 ;
 
 create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
@@ -197,7 +206,7 @@ create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
     //     char *table; //基本表名称
     //     struct CreateFields *fdef; //字段定义
     // };
-    $$ = (CreateTable*) malloc(sizeof(struct CreateTable));
+    $$ = new CreateTable;
     $$->table = $3;
     $$->fdef = $5;
     // printf_red("Create table with columns\n");
@@ -210,7 +219,7 @@ column_def_list: column_def
     //     struct CreateField *fdef;
     //     struct CreateFields *next_fdef; //下一字段
     // };
-    $$ = (CreateFields*) malloc(sizeof(struct CreateFields));
+    $$ = new CreateFields;
     $$->fdef = $1;
     $$->next_fdef = NULL;
 }
@@ -220,7 +229,7 @@ column_def_list: column_def
 
     CreateFields* temp = fields;
     while (temp->next_fdef != NULL) temp = temp->next_fdef;
-    CreateFields* next_fields = (CreateFields*) malloc(sizeof(struct CreateFields));
+    CreateFields* next_fields = new CreateFields;
     next_fields->fdef = $3;
     next_fields->next_fdef = NULL;
 
@@ -237,7 +246,7 @@ column_def: IDENTIFIER CHAR LPAREN NUMBER RPAREN
     //     enum TYPE type; //字段类型
     //     int length; //字段长度
     // }
-    struct CreateField *tmp = (CreateField*)malloc(sizeof(struct CreateField));
+    struct CreateField *tmp = new CreateField;
     tmp->field = $1;
     tmp->type = $2;
     tmp->length = $4;
@@ -245,7 +254,7 @@ column_def: IDENTIFIER CHAR LPAREN NUMBER RPAREN
 }
 | IDENTIFIER INT
 {
-    struct CreateField *tmp = (CreateField*)malloc(sizeof(struct CreateField));
+    struct CreateField *tmp = new CreateField;
     tmp->field = $1;
     tmp->type = $2;
     $$ = tmp;
@@ -274,8 +283,8 @@ insert_stmt: INSERT INTO IDENTIFIER LPAREN field_name_list RPAREN VALUES LPAREN 
     //     TableMetaData *table_meta_data;
     //     struct FieldValueList *val_list;
     // };
-    $$ = (InsertRecord*) malloc(sizeof(struct InsertRecord));
-    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    $$ = new InsertRecord;
+    TableMetaData* table_meta_data = new TableMetaData;
     table_meta_data->table_name = $3;
     table_meta_data->field_list = $5;
     $$->table_meta_data = table_meta_data;
@@ -283,8 +292,8 @@ insert_stmt: INSERT INTO IDENTIFIER LPAREN field_name_list RPAREN VALUES LPAREN 
 }
 | INSERT INTO IDENTIFIER VALUES LPAREN term_list RPAREN
 {
-    $$ = (InsertRecord*) malloc(sizeof(struct InsertRecord));
-    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    $$ = new InsertRecord;
+    TableMetaData* table_meta_data = new TableMetaData;
     table_meta_data->table_name = $3;
     table_meta_data->field_list = NULL;
     $$->table_meta_data = table_meta_data;
@@ -298,7 +307,7 @@ field_name_list: IDENTIFIER
     //     char* field_name;
     //     struct FieldList* next;
     // } FieldList;
-    $$ = (struct FieldList*) malloc(sizeof(FieldList));
+    $$ = new FieldList;
     $$->field_name = $1;
     $$->next = NULL;
 }
@@ -307,7 +316,7 @@ field_name_list: IDENTIFIER
     FieldList* list = $1;
     FieldList* tmp = list;
 	while (tmp->next != NULL) tmp = tmp->next;
-	struct FieldList* next_field = (struct FieldList*) malloc(sizeof(FieldList));
+	struct FieldList* next_field = new FieldList;
 	next_field->field_name = $3;
 	next_field->next = NULL;
 	tmp->next = next_field;
@@ -315,37 +324,58 @@ field_name_list: IDENTIFIER
 }
 ;
 
-select_stmt: SELECT select_list FROM field_name_list where_clause
+select_stmt: SELECT select_field_list FROM IDENTIFIER where_clause
             {
-                printf_red("Select from with columns\n");
+                $$ = new SelectRecord;
+
+                std::vector<std::string> field_names;
+                FieldList* temp = $2;
+                while (temp != NULL) {
+                    std::string field_name(temp->field_name);
+                    field_names.push_back(field_name);
+                    temp = temp->next;
+                }
+                $$->select_names = field_names;
+                $$->table_name = $4;
+                $$->where_case = $5;
+                // printf_red("Select from with columns\n");
             }
             ;
 
-select_list: SELECT_ALL
-           | term_list
-           ;
+select_field_list: SELECT_ALL
+{
+    $$ = NULL;
+}
+| field_name_list
+{
+    $$ = $1;
+}
+;
 
 term: NUMBER
 {
-    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    Expr* _expr = new Expr;
     _expr->type = 1;
     _expr->intval = $1;
     $$ = _expr;
+    // printf("%d\n", $$->intval);
 }
 | STRING
 {
-    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    Expr* _expr = new Expr;
     _expr->type = 0;
     _expr->strval = $1;
     $$ = _expr;
+    // printf("%s\n", $$->strval);
 }
 | IDENTIFIER
 {
-    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    Expr* _expr = new Expr;
     _expr->type = 2;
     _expr->strval = $1;
     $$ = _expr;
-}
+    // printf("%s\n", $$->strval);
+} 
 
 expr: term
 {
@@ -353,10 +383,35 @@ expr: term
 }
 | term equal_op term
 {
-    $$ = (Expr*) malloc(sizeof(Expr));
+    $$ = new Expr;
     $$->left = $1;
     $$->type = $2;
     $$->right = $3;
+    // printf("%s %d %d\n", $$->left->strval, $$->type, $$->right->intval);
+}
+| term ADD term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval + $3->intval;
+    $$->type = $1->type;
+}
+| term SUB term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval + $3->intval;
+    $$->type = $1->type;
+}
+| term MUL term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval * $3->intval;
+    $$->type = $1->type;
+}
+| term DIV term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval / $3->intval;
+    $$->type = $1->type;
 }
 ;
 
@@ -373,7 +428,7 @@ term_list: term
     //     Expr* expr;
     //     struct FieldValueList* next;
     // } FieldValueList;
-    FieldValueList* value_list = (FieldValueList*) malloc(sizeof(FieldValueList));
+    FieldValueList* value_list = new FieldValueList;
     value_list->expr = $1;
     value_list->next = NULL;
     $$ = value_list;
@@ -383,7 +438,7 @@ term_list: term
     FieldValueList* value_list = $1;
     FieldValueList* temp = value_list;
     while (temp->next != NULL) temp = temp->next;
-    FieldValueList* next_value = (FieldValueList*) malloc(sizeof(FieldValueList));
+    FieldValueList* next_value = new FieldValueList;
     next_value->expr = $3;
     next_value->next = NULL;
     temp->next = next_value;
@@ -391,20 +446,30 @@ term_list: term
 }
 ;
 
+// Expr
+// {
+//     // 0 STR(string) ; 1 int ; 2 id ; 'a' and ; 'o' or
+//     // 3 = ; 4 != ; 5 < ; 6 > ; 7 <= ; 8 >=
+//     int type;
+//     char *strval = NULL;
+//     int intval = -1;
+//     int judge = -1; // 0 false;1 true;-1 null
+//     struct Expr *left, *right;
+// } Expr;
 expr_list: expr
 {
     $$ = $1;
 }
 | expr_list AND expr_list
 {
-    $$ = (Expr*)malloc(sizeof(Expr));
+    $$ = new Expr;
     $$->left = $1;
     $$->type = $2;
     $$->right = $3;
 }
 | expr_list OR expr_list
 {
-    $$ = (Expr*)malloc(sizeof(Expr));
+    $$ = new Expr;
     $$->left = $1;
     $$->type = $2;
     $$->right = $3;
@@ -427,7 +492,7 @@ where_clause: /* empty */
 
 delete_stmt: DELETE FROM IDENTIFIER where_clause
 {
-    $$ = (DeleteRecord*) malloc(sizeof(DeleteRecord));
+    $$ = new DeleteRecord;
     $$->table_name = $3;
     $$->where_case = $4;
 }
@@ -435,13 +500,52 @@ delete_stmt: DELETE FROM IDENTIFIER where_clause
 
 update_stmt: UPDATE IDENTIFIER SET update_list where_clause
             {
-                printf_red("Update table with values\n");
+                $$ = new UpdateRecord;
+                std::string table_name($2);
+                $$->table_name = table_name;
+                UpdateMap* update_map_wrap = $4;
+                $$->update_map = update_map_wrap->update_map;
+                // std::cout << $$->update_map.size() << std::endl;
+                // auto it = $$->update_map.begin();
+                // std::cout << it->first << ":" << (it->second).intvalue
+                //     << std::endl;
+
+                $$->where_case = $5;
+                // printf_red("Update table with values\n");
             }
             ;
 
 update_list: IDENTIFIER EQUAL term
-           | update_list COMMA IDENTIFIER EQUAL term
-           ;
+{
+    UpdateMap* update_map_wrap = new UpdateMap;
+
+    TmpValue* tmp = new TmpValue;
+    tmp->type = $3->type;
+    tmp->strvalue = $3->strval;
+    tmp->intvalue = $3->intval;
+
+    std::map<std::string, TmpValue> update_map;
+    $$->update_map = update_map;
+    std::string field_name($1);
+    update_map[field_name] = *tmp;
+    update_map_wrap->update_map = update_map;
+    $$ = update_map_wrap;
+}
+| update_list COMMA IDENTIFIER EQUAL term
+{
+    TmpValue* tmp = new TmpValue;
+    tmp->type = $5->type;
+    tmp->strvalue = $5->strval;
+    tmp->intvalue = $5->intval;
+
+    UpdateMap* update_map_wrap = $1;
+    std::map<std::string, TmpValue> update_map = update_map_wrap->update_map;
+    std::string field_name($3);
+    update_map[field_name] = *tmp;
+    update_map_wrap->update_map = update_map;
+    $$ = update_map_wrap;
+}
+;
 
 %%
 void create_db(char* dbname)
@@ -593,14 +697,6 @@ void use_db(char* dbname) {
 
     printf("Database %s does not exist\n", dbname);
     fclose(file);
-}
-
-int check_use_db() {
-    if (session.db == NULL) {
-        printf("have not use database\n");
-        return 0;
-    }
-    return 1;
 }
 
 void do_create_table(struct CreateTable* create_table_ctx) {

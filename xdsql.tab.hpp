@@ -77,14 +77,18 @@ extern int yydebug;
     LPAREN = 283,
     RPAREN = 284,
     SEMICOLON = 285,
-    OR = 286,
-    AND = 287,
-    EQUAL = 288,
-    NOT_EQUAL = 289,
-    MORE = 290,
-    LESS = 291,
-    MORE_EQUAL = 292,
-    LESS_EQUAL = 293
+    ADD = 286,
+    SUB = 287,
+    MUL = 288,
+    DIV = 289,
+    OR = 290,
+    AND = 291,
+    EQUAL = 292,
+    NOT_EQUAL = 293,
+    MORE = 294,
+    LESS = 295,
+    MORE_EQUAL = 296,
+    LESS_EQUAL = 297
   };
 #endif
 
@@ -93,7 +97,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 91 "xdsql.y" /* yacc.c:1921  */
+#line 85 "xdsql.y" /* yacc.c:1921  */
 
     int intval;
     double dval;
@@ -107,8 +111,11 @@ union YYSTYPE
     struct TableMetaData* table_meta_data; //table元数据
     struct Expr* _expr; //表达式:可以是一个数字,也可以是一个运算式
     struct DeleteRecord* delete_record;
+    struct SelectRecord* select_record;
+    struct UpdateMap* _update_map;
+    struct UpdateRecord* update_record;
 
-#line 112 "xdsql.tab.hpp" /* yacc.c:1921  */
+#line 119 "xdsql.tab.hpp" /* yacc.c:1921  */
 };
 
 typedef union YYSTYPE YYSTYPE;

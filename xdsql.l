@@ -84,15 +84,15 @@ int int
 										return VALUES;
 									}
 {select}					{
-										printf("识别SELECT\n");
+										// printf("识别SELECT\n");
 										return SELECT;
 									}
 {from}						{
-										printf("识别FROM\n");
+										// printf("识别FROM\n");
 										return FROM;
 									}
 {where}						{
-										printf("识别WHERE\n");
+										// printf("识别WHERE\n");
 										return WHERE;
 									}
 {and} {
@@ -106,15 +106,15 @@ int int
 	return OR;
 }
 {delete}					{
-										printf("识别DELETE\n");
+										// printf("识别DELETE\n");
 										return DELETE;
 									}
 {update}					{
-										printf("识别UPDATE\n");
+										// printf("识别UPDATE\n");
 										return UPDATE;
 									}
 {set}							{
-										printf("识别SET\n");
+										// printf("识别SET\n");
 										return SET;
 									}
 {char} {
@@ -126,6 +126,22 @@ int int
 	// printf("识别INT\n");
 	yylval.intval = 1;
 	return INT;
+}
+
+"+" {
+	return ADD;
+}
+
+"-" {
+	return SUB;
+}
+
+"*" {
+	return MUL;
+}
+
+"/" {
+	return DIV;
 }
 
 "," {
@@ -174,7 +190,10 @@ int int
 }
 
 "'" { printf("识别单引号\n"); return SINGLE_QUOTE; }
-"#" { printf("识别#\n"); return SELECT_ALL; }
+"#" {
+	// printf("识别#\n");
+	return SELECT_ALL;
+}
 
 
 {identifier} {

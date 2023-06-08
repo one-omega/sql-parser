@@ -87,9 +87,9 @@ void update_rows(UpdateRecord* update_record_ctx) {
 
         if (ret)
         {
-            std::cout << "ret:" << ret << std::endl;
+            // std::cout << "ret:" << ret << std::endl;
             auto& update_map = update_record_ctx->update_map_wrap->update_map;
-            std::cout << "size:" << update_map.size() << std::endl;
+            // std::cout << "size:" << update_map.size() << std::endl;
             for (auto it = update_map.begin(); it != update_map.end(); ++it) {
                 // std::cout << "update..." << std::endl; 
                 const std::string& field_name = it->first;

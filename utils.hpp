@@ -80,8 +80,9 @@ typedef struct UpdateMap {
 
 typedef struct UpdateRecord
 {
-    std::string table_name;
-    std::map<std::string, TmpValue> update_map;
+    char* table_name;
+    // std::map<std::string, TmpValue> update_map;
+    UpdateMap* update_map_wrap;
     Expr *where_case;
 } UpdateRecord;
 

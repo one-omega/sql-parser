@@ -127,6 +127,7 @@ void insert_rows(InsertRecord* insert_record);
 %type <filed_value_list> term_list
 %type <insert_record> insert_stmt
 %type <_expr> term
+%type <_expr> op_term
 %type <_expr> expr
 %type <_expr> expr_list
 %type <_expr> where_clause
@@ -377,41 +378,50 @@ term: NUMBER
     // printf("%s\n", $$->strval);
 } 
 
-expr: term
+op_term: term
 {
     $$ = $1;
 }
-| term equal_op term
+| op_term ADD op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval + $3->intval;
+    $$->type = $1->type;
+}
+| op_term SUB op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval + $3->intval;
+    $$->type = $1->type;
+}
+| op_term MUL op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval * $3->intval;
+    $$->type = $1->type;
+}
+| op_term DIV op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval / $3->intval;
+    $$->type = $1->type;
+}
+| '(' op_term ')'
+{
+    $$ = $2;
+}
+
+expr: op_term
+{
+    $$ = $1;
+}
+| op_term equal_op op_term
 {
     $$ = new Expr;
     $$->left = $1;
     $$->type = $2;
     $$->right = $3;
     // printf("%s %d %d\n", $$->left->strval, $$->type, $$->right->intval);
-}
-| term ADD term
-{
-    $$ = new Expr;
-    $$->intval = $1->intval + $3->intval;
-    $$->type = $1->type;
-}
-| term SUB term
-{
-    $$ = new Expr;
-    $$->intval = $1->intval + $3->intval;
-    $$->type = $1->type;
-}
-| term MUL term
-{
-    $$ = new Expr;
-    $$->intval = $1->intval * $3->intval;
-    $$->type = $1->type;
-}
-| term DIV term
-{
-    $$ = new Expr;
-    $$->intval = $1->intval / $3->intval;
-    $$->type = $1->type;
 }
 ;
 
@@ -501,15 +511,13 @@ delete_stmt: DELETE FROM IDENTIFIER where_clause
 update_stmt: UPDATE IDENTIFIER SET update_list where_clause
             {
                 $$ = new UpdateRecord;
-                std::string table_name($2);
+                char* table_name = $2;
                 $$->table_name = table_name;
-                UpdateMap* update_map_wrap = $4;
-                $$->update_map = update_map_wrap->update_map;
+                $$->update_map_wrap = $4;
                 // std::cout << $$->update_map.size() << std::endl;
                 // auto it = $$->update_map.begin();
                 // std::cout << it->first << ":" << (it->second).intvalue
                 //     << std::endl;
-
                 $$->where_case = $5;
                 // printf_red("Update table with values\n");
             }
@@ -525,7 +533,6 @@ update_list: IDENTIFIER EQUAL term
     tmp->intvalue = $3->intval;
 
     std::map<std::string, TmpValue> update_map;
-    $$->update_map = update_map;
     std::string field_name($1);
     update_map[field_name] = *tmp;
     update_map_wrap->update_map = update_map;
@@ -539,7 +546,7 @@ update_list: IDENTIFIER EQUAL term
     tmp->intvalue = $5->intval;
 
     UpdateMap* update_map_wrap = $1;
-    std::map<std::string, TmpValue> update_map = update_map_wrap->update_map;
+    auto& update_map = update_map_wrap->update_map;
     std::string field_name($3);
     update_map[field_name] = *tmp;
     update_map_wrap->update_map = update_map;
@@ -672,6 +679,7 @@ void show_db() {
         printf("%s", line);
     }
 
+    printf("\n");
     // 关闭文件
     fclose(file);
 }

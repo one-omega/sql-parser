@@ -1,2 +1,0 @@
-DB 1 
-COMPILER 2 

@@ -16,6 +16,7 @@ Expr* deepCopyExpr(Expr* expr);
 void deleteExpr(Expr* expr);
 
 Session session;
+
 int length = 0;
 
 void update_rows(UpdateRecord* update_record_ctx) {
@@ -25,12 +26,14 @@ void update_rows(UpdateRecord* update_record_ctx) {
         return;
     }
     char *db = session.db;
+    // std::cout << db << std::endl;
     build_table_data();
-    std::string table_name = update_record_ctx->table_name;
+
+    char *c_table_name = update_record_ctx->table_name;
     Expr *where_case = update_record_ctx->where_case;
 
     char file_path[100];
-    std::sprintf(file_path, "./data/%s/%s.txt", db, table_name.c_str());
+    std::sprintf(file_path, "./data/%s/%s.txt", db, c_table_name);
     std::ifstream file(file_path);
 
     if (!file.is_open())
@@ -39,6 +42,9 @@ void update_rows(UpdateRecord* update_record_ctx) {
     }
 
     std::string line;
+
+    std::string table_name_str(c_table_name);
+
     std::vector<std::vector<std::string>> updated_data; // 用于保存更新后的数据
 
     while (std::getline(file, line))
@@ -52,11 +58,16 @@ void update_rows(UpdateRecord* update_record_ctx) {
             values.push_back(data);
         }
         int ret = 0;
+        std::string table_name_str(c_table_name);
+        // std::cout << "before where" << std::endl;
         if (where_case != NULL) {
-            std::cout << "where_case:" << where_case << std::endl;
+            // std::cout << "where_case:" << where_case << std::endl;
             Expr* tmp = deepCopyExpr(where_case);
             // std::cout << "tmp:" << tmp << std::endl;
-            Expr *root = dfs_expr(tmp, values, table_name);
+            Expr *root = dfs_expr(tmp, values, table_name_str);
+            // std::cout << "after dfs" << std::endl;
+            // printf("judge:%d,left:%d,op:%d,right:%d\n",
+            //        root->judge, root->left->judge, root->type, root->right->judge);
             if (root->type == _INT && root->intval != 0)
             {
                 ret = 1;
@@ -69,7 +80,7 @@ void update_rows(UpdateRecord* update_record_ctx) {
             {
                 ret = 1;
             }
-            // deleteExpr(root);
+            deleteExpr(root);
         } else {
             ret = 1;
         }
@@ -77,15 +88,15 @@ void update_rows(UpdateRecord* update_record_ctx) {
         if (ret)
         {
             std::cout << "ret:" << ret << std::endl;
-            auto& update_map = update_record_ctx->update_map;
-            // std::cout << "size:" << update_map.size() << std::endl;
+            auto& update_map = update_record_ctx->update_map_wrap->update_map;
+            std::cout << "size:" << update_map.size() << std::endl;
             for (auto it = update_map.begin(); it != update_map.end(); ++it) {
                 // std::cout << "update..." << std::endl; 
                 const std::string& field_name = it->first;
                 // std::cout << "field_name:" << field_name << std::endl;
                 const TmpValue& tmp_value = it->second;
 
-                int index = table_name_map[table_name][field_name] - 1;
+                int index = table_name_map[table_name_str][field_name] - 1;
                 int type = tmp_value.type;
                 if (type == _INT) {
                     std::string strval = std::to_string(tmp_value.intvalue);
@@ -97,12 +108,13 @@ void update_rows(UpdateRecord* update_record_ctx) {
                 }
             }
         }
+        // std::cout << "ret:" << ret << std::endl;
         updated_data.push_back(values);
     }
 
     file.close();
 
-    std::cout << "overwrite..." << std::endl;
+    // std::cout << "overwrite..." << std::endl;
     // 打开同一个文件进行写操作
     std::ofstream outfile(file_path);
     if (!outfile.is_open())
@@ -124,7 +136,15 @@ void update_rows(UpdateRecord* update_record_ctx) {
     }
     outfile.close();
 
-    session.db = NULL;
+    std::cout << "update success" << std::endl;
+    // old_db = session.db;
+    // flag = 0;
+    // session.db = NULL;
+    // if (!flag) {
+    //     update_rows(update_record_ctx);
+    // }
+    delete update_record_ctx->where_case;
+    delete update_record_ctx;
 }
 
 void select_rows(SelectRecord* select_record_ctx) {
@@ -134,7 +154,7 @@ void select_rows(SelectRecord* select_record_ctx) {
         return;
     }
     char *db = session.db;
-    std::cout << db << std::endl;
+    // std::cout << db << std::endl;
     build_table_data();
 
     // std::cout << "table_map:" << std::endl;
@@ -201,6 +221,7 @@ void select_rows(SelectRecord* select_record_ctx) {
             Expr* tmp = deepCopyExpr(where_case);
             // std::cout << "tmp:" << tmp << std::endl;
             Expr *root = dfs_expr(tmp, values, table_name_str);
+            // std::cout << "after dfs" << std::endl;
             // printf("judge:%d,left:%d,op:%d,right:%d\n",
             //        root->judge, root->left->judge, root->type, root->right->judge);
             if (root->type == _INT && root->intval != 0)
@@ -245,7 +266,7 @@ void select_rows(SelectRecord* select_record_ctx) {
 void delete_row(DeleteRecord *delete_record_ctx)
 {
     // printf("delete....\n");
-    Expr* expr_ = delete_record_ctx->where_case;
+    // Expr* expr_ = delete_record_ctx->where_case;
     // printf("expr:%s %d %d...\n", expr_->left->strval, expr_->type,
     //     expr_->right->intval);
     // std::cout << "expr_->left->left:" << (expr_->left->left == NULL) << std::endl;
@@ -317,12 +338,12 @@ void delete_row(DeleteRecord *delete_record_ctx)
         // std::cout << std::endl;
         // std::cout << "where_case:" << where_case << std::endl;
         // length = 0;
-        // Expr* tmp = deepCopyExpr(where_case);
+        Expr* tmp = deepCopyExpr(where_case);
         // std::cout << "tmp:" << tmp << std::endl;
-        Expr *root = dfs_expr(where_case, values, table_name_str);
+        Expr *root = dfs_expr(tmp, values, table_name_str);
         int ret = 0;
-        printf("judge:%d,left:%d,op:%d,right:%d\n",
-               root->judge, root->left->judge, root->type, root->right->judge);
+        // printf("judge:%d,left:%d,op:%d,right:%d\n",
+        //        root->judge, root->left->judge, root->type, root->right->judge);
         if (root->type == _INT && root->intval != 0)
         {
             ret = 1;
@@ -339,7 +360,7 @@ void delete_row(DeleteRecord *delete_record_ctx)
         {
             lines_to_keep.push_back(line);
         }
-        // deleteExpr(root);
+        deleteExpr(root);
     }
     file.close();
     // 删除原文件
@@ -359,7 +380,7 @@ void delete_row(DeleteRecord *delete_record_ctx)
 
     printf("delete success\n");
     new_file.close();
-    session.db = NULL;
+    // session.db = NULL;
 }
 
 Expr *dfs_expr(Expr *expr, std::vector<std::string> values, std::string table_name)
@@ -451,6 +472,8 @@ Expr *dfs_expr(Expr *expr, std::vector<std::string> values, std::string table_na
                 } else if (left_type == _CHAR) {
                     if (left_str_value != NULL && right_str_value != NULL) {
                         expr->judge = (strcmp(left_str_value, right_str_value) == 0);
+                    } else {
+                        expr->judge = 0;
                     }
                 }
                 break;
@@ -460,6 +483,8 @@ Expr *dfs_expr(Expr *expr, std::vector<std::string> values, std::string table_na
                 } else if (left_type == _CHAR) {
                     if (left_str_value != NULL && right_str_value != NULL) {
                         expr->judge = (strcmp(left_str_value, right_str_value) != 0);
+                    } else {
+                        expr->judge = 1;
                     }
                 }
                 break;
@@ -544,11 +569,14 @@ Expr* deepCopyExpr(Expr* expr)
     // printf("copy....");
     length++;
     if (length >= 50) {
+        length = 0;
         return NULL;
     }
 
-    if (expr == NULL)
+    if (expr == NULL) {
+        length = 0;
         return NULL;
+    }
 
     Expr* newExpr = new Expr;
     newExpr->type = expr->type;
@@ -592,6 +620,9 @@ TmpValue* get_field_value(char* c_field_name, std::string table_name, std::vecto
 
     TmpValue* tmp_value = (TmpValue*) malloc(sizeof(TmpValue));
     int type = field_info.type;
+    if (value == "NULL") {
+        type = _CHAR;
+    }
     tmp_value->type = type;
     if (type == _INT) {
         tmp_value->intvalue = std::stoi(value);

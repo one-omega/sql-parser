@@ -1,1 +1,7 @@
 copy/**
+.vscode/**
+xdsql
+xdsql.tab.cpp
+xdsql.tab.hpp
+lex.yy.cpp
+./data/**

@@ -6,9 +6,16 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <iostream>
+#include "utils.hpp"
+#include <map>
+#include <string>
 #define true 1
 #define false 0
-int yyerror(const char *s, ...);
+
+void yyerror(const char *s);
+int yylex();
+int yyparse();
 
 /*
 db 相关函数
@@ -17,7 +24,6 @@ void create_db(char* dbname);
 void drop_db(char* dbname);
 void show_db();
 void use_db(char* dbname);
-int check_use_db();
 
 /*
 工具函数
@@ -26,21 +32,12 @@ void remove_directory(const char* path);
 int check_file_exists(const char *filepath);
 void create_file(const char *filepath);
 
-extern int yylex();
-extern int yyparse();
 void printf_red(const char *s)
 {
     printf("\033[0m\033[1;31m%s\033[0m", s);
 }
 
-/*
-一次数据库连接的信息
-*/
-typedef struct Session {
-    char* db;
-} Session;
-Session session;
-
+extern Session session;
 /*
 create table sql
 */
@@ -66,11 +63,6 @@ void drop_table(char* table);
 /*
 insert sql
 */
-typedef struct Expr {
-    int type;
-    char* strval;
-    int intval;
-} Expr;
 typedef struct FieldList {
     char* field_name;
     struct FieldList* next;
@@ -101,7 +93,11 @@ void insert_rows(InsertRecord* insert_record);
     struct FieldList* field_list; //插入字段的字段名
     struct InsertRecord *insert_record; //插入sql语句
     struct TableMetaData* table_meta_data; //table元数据
-    struct Expr* _expr;
+    struct Expr* _expr; //表达式:可以是一个数字,也可以是一个运算式
+    struct DeleteRecord* delete_record;
+    struct SelectRecord* select_record;
+    struct UpdateMap* _update_map;
+    struct UpdateRecord* update_record;
 }
 
 %token <strval> IDENTIFIER
@@ -112,18 +108,17 @@ void insert_rows(InsertRecord* insert_record);
 %token CREATE SHOW DROP USE INSERT SELECT DELETE UPDATE SET INTO FROM WHERE DATABASE DATABASES TABLE TABLES VALUES
 %token SELECT_ALL
 %token SINGLE_QUOTE COMMA LPAREN RPAREN SEMICOLON
-%token OR
-%token AND
-%token EQUAL NOT_EQUAL
-%token MORE LESS
-%token NOT
+%token ADD SUB
+%token MUL DIV
+%token <intval> OR
+%token <intval> AND
+%token <intval> EQUAL NOT_EQUAL MORE LESS MORE_EQUAL LESS_EQUAL
 
 %left OR
 %left AND
-%right NOT
 
-%left '+' '-'
-%left '*' '/'
+%left ADD SUB
+%left MUL DIV
 
 %type <create_table> create_table_stmt
 %type <create_field> column_def
@@ -132,6 +127,16 @@ void insert_rows(InsertRecord* insert_record);
 %type <filed_value_list> term_list
 %type <insert_record> insert_stmt
 %type <_expr> term
+%type <_expr> op_term
+%type <_expr> expr
+%type <_expr> expr_list
+%type <_expr> where_clause
+%type <delete_record> delete_stmt
+%type <intval> equal_op
+%type <select_record> select_stmt;
+%type <field_list> select_field_list;
+%type <_update_map> update_list;
+%type <update_record> update_stmt;
 %%
 
 stmt_list: /* empty */
@@ -143,9 +148,6 @@ stmt: create_db_stmt
     | use_db_stmt
     | show_dbs_stmt
     | table_stmt
-    | select_stmt
-    | delete_stmt
-    | update_stmt
     ;
 
 create_db_stmt: CREATE DATABASE IDENTIFIER
@@ -185,6 +187,18 @@ table_stmt: create_table_stmt
 {
     insert_rows($1);
 }
+| delete_stmt
+{
+    delete_row($1);
+}
+| select_stmt
+{
+    select_rows($1);
+}
+| update_stmt
+{
+    update_rows($1);
+}
 ;
 
 create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
@@ -193,7 +207,7 @@ create_table_stmt: CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN
     //     char *table; //基本表名称
     //     struct CreateFields *fdef; //字段定义
     // };
-    $$ = malloc(sizeof(struct CreateTable));
+    $$ = new CreateTable;
     $$->table = $3;
     $$->fdef = $5;
     // printf_red("Create table with columns\n");
@@ -206,7 +220,7 @@ column_def_list: column_def
     //     struct CreateField *fdef;
     //     struct CreateFields *next_fdef; //下一字段
     // };
-    $$ = malloc(sizeof(struct CreateFields));
+    $$ = new CreateFields;
     $$->fdef = $1;
     $$->next_fdef = NULL;
 }
@@ -216,7 +230,7 @@ column_def_list: column_def
 
     CreateFields* temp = fields;
     while (temp->next_fdef != NULL) temp = temp->next_fdef;
-    CreateFields* next_fields = (CreateFields*) malloc(sizeof(struct CreateFields));
+    CreateFields* next_fields = new CreateFields;
     next_fields->fdef = $3;
     next_fields->next_fdef = NULL;
 
@@ -233,7 +247,7 @@ column_def: IDENTIFIER CHAR LPAREN NUMBER RPAREN
     //     enum TYPE type; //字段类型
     //     int length; //字段长度
     // }
-    struct CreateField *tmp = (CreateField*)malloc(sizeof(struct CreateField));
+    struct CreateField *tmp = new CreateField;
     tmp->field = $1;
     tmp->type = $2;
     tmp->length = $4;
@@ -241,7 +255,7 @@ column_def: IDENTIFIER CHAR LPAREN NUMBER RPAREN
 }
 | IDENTIFIER INT
 {
-    struct CreateField *tmp = (CreateField*)malloc(sizeof(struct CreateField));
+    struct CreateField *tmp = new CreateField;
     tmp->field = $1;
     tmp->type = $2;
     $$ = tmp;
@@ -270,8 +284,8 @@ insert_stmt: INSERT INTO IDENTIFIER LPAREN field_name_list RPAREN VALUES LPAREN 
     //     TableMetaData *table_meta_data;
     //     struct FieldValueList *val_list;
     // };
-    $$ = malloc(sizeof(struct InsertRecord));
-    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    $$ = new InsertRecord;
+    TableMetaData* table_meta_data = new TableMetaData;
     table_meta_data->table_name = $3;
     table_meta_data->field_list = $5;
     $$->table_meta_data = table_meta_data;
@@ -279,8 +293,8 @@ insert_stmt: INSERT INTO IDENTIFIER LPAREN field_name_list RPAREN VALUES LPAREN 
 }
 | INSERT INTO IDENTIFIER VALUES LPAREN term_list RPAREN
 {
-    $$ = malloc(sizeof(struct InsertRecord));
-    TableMetaData* table_meta_data = (TableMetaData*) malloc(sizeof(TableMetaData));
+    $$ = new InsertRecord;
+    TableMetaData* table_meta_data = new TableMetaData;
     table_meta_data->table_name = $3;
     table_meta_data->field_list = NULL;
     $$->table_meta_data = table_meta_data;
@@ -294,7 +308,7 @@ field_name_list: IDENTIFIER
     //     char* field_name;
     //     struct FieldList* next;
     // } FieldList;
-    $$ = (struct FieldList*) malloc(sizeof(FieldList));
+    $$ = new FieldList;
     $$->field_name = $1;
     $$->next = NULL;
 }
@@ -303,7 +317,7 @@ field_name_list: IDENTIFIER
     FieldList* list = $1;
     FieldList* tmp = list;
 	while (tmp->next != NULL) tmp = tmp->next;
-	struct FieldList* next_field = (struct FieldList*) malloc(sizeof(FieldList));
+	struct FieldList* next_field = new FieldList;
 	next_field->field_name = $3;
 	next_field->next = NULL;
 	tmp->next = next_field;
@@ -311,44 +325,112 @@ field_name_list: IDENTIFIER
 }
 ;
 
-select_stmt: SELECT select_list FROM field_name_list where_clause
+select_stmt: SELECT select_field_list FROM IDENTIFIER where_clause
             {
-                printf_red("Select from with columns\n");
+                $$ = new SelectRecord;
+
+                std::vector<std::string> field_names;
+                FieldList* temp = $2;
+                while (temp != NULL) {
+                    std::string field_name(temp->field_name);
+                    field_names.push_back(field_name);
+                    temp = temp->next;
+                }
+                $$->select_names = field_names;
+                $$->table_name = $4;
+                $$->where_case = $5;
+                // printf_red("Select from with columns\n");
             }
             ;
 
-select_list: SELECT_ALL
-           | term_list
-           ;
+select_field_list: SELECT_ALL
+{
+    $$ = NULL;
+}
+| field_name_list
+{
+    $$ = $1;
+}
+;
 
 term: NUMBER
 {
-    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    Expr* _expr = new Expr;
     _expr->type = 1;
     _expr->intval = $1;
     $$ = _expr;
+    // printf("%d\n", $$->intval);
 }
 | STRING
 {
-    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    Expr* _expr = new Expr;
     _expr->type = 0;
     _expr->strval = $1;
     $$ = _expr;
+    // printf("%s\n", $$->strval);
 }
 | IDENTIFIER
 {
-    Expr* _expr = (Expr*) malloc(sizeof(Expr));
+    Expr* _expr = new Expr;
     _expr->type = 2;
     _expr->strval = $1;
     $$ = _expr;
+    // printf("%s\n", $$->strval);
+} 
+
+op_term: term
+{
+    $$ = $1;
+}
+| op_term ADD op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval + $3->intval;
+    $$->type = $1->type;
+}
+| op_term SUB op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval + $3->intval;
+    $$->type = $1->type;
+}
+| op_term MUL op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval * $3->intval;
+    $$->type = $1->type;
+}
+| op_term DIV op_term
+{
+    $$ = new Expr;
+    $$->intval = $1->intval / $3->intval;
+    $$->type = $1->type;
+}
+| '(' op_term ')'
+{
+    $$ = $2;
 }
 
-expr: term
-    | term EQUAL term
-    | term NOT_EQUAL term
-    | term MORE term
-    | term LESS term
-    ;
+expr: op_term
+{
+    $$ = $1;
+}
+| op_term equal_op op_term
+{
+    $$ = new Expr;
+    $$->left = $1;
+    $$->type = $2;
+    $$->right = $3;
+    // printf("%s %d %d\n", $$->left->strval, $$->type, $$->right->intval);
+}
+;
+
+equal_op: EQUAL { $$ = $1; }
+| NOT_EQUAL { $$ = $1; }
+| MORE { $$ = $1; }
+| LESS { $$ = $1; }
+| MORE_EQUAL { $$ = $1; }
+| LESS_EQUAL { $$ = $1; }
 
 term_list: term
 {
@@ -356,7 +438,7 @@ term_list: term
     //     Expr* expr;
     //     struct FieldValueList* next;
     // } FieldValueList;
-    FieldValueList* value_list = (FieldValueList*) malloc(sizeof(FieldValueList));
+    FieldValueList* value_list = new FieldValueList;
     value_list->expr = $1;
     value_list->next = NULL;
     $$ = value_list;
@@ -366,7 +448,7 @@ term_list: term
     FieldValueList* value_list = $1;
     FieldValueList* temp = value_list;
     while (temp->next != NULL) temp = temp->next;
-    FieldValueList* next_value = (FieldValueList*) malloc(sizeof(FieldValueList));
+    FieldValueList* next_value = new FieldValueList;
     next_value->expr = $3;
     next_value->next = NULL;
     temp->next = next_value;
@@ -374,35 +456,103 @@ term_list: term
 }
 ;
 
+// Expr
+// {
+//     // 0 STR(string) ; 1 int ; 2 id ; 'a' and ; 'o' or
+//     // 3 = ; 4 != ; 5 < ; 6 > ; 7 <= ; 8 >=
+//     int type;
+//     char *strval = NULL;
+//     int intval = -1;
+//     int judge = -1; // 0 false;1 true;-1 null
+//     struct Expr *left, *right;
+// } Expr;
 expr_list: expr
-         | expr_list AND expr_list
-         | expr_list OR expr_list
-         | NOT expr_list
-         | LPAREN expr_list RPAREN
-         ;
+{
+    $$ = $1;
+}
+| expr_list AND expr_list
+{
+    $$ = new Expr;
+    $$->left = $1;
+    $$->type = $2;
+    $$->right = $3;
+}
+| expr_list OR expr_list
+{
+    $$ = new Expr;
+    $$->left = $1;
+    $$->type = $2;
+    $$->right = $3;
+}
+| LPAREN expr_list RPAREN
+{
+    $$ = $2;
+}
+;
 
 where_clause: /* empty */
-            | WHERE expr_list
-            {
-                printf_red("where clause\n");
-            }
-            ;
+{
+    $$ = NULL;
+}
+| WHERE expr_list
+{
+    $$ = $2;
+}
+;
 
 delete_stmt: DELETE FROM IDENTIFIER where_clause
-            {
-                printf_red("Delete from\n");
-            }
-            ;
+{
+    $$ = new DeleteRecord;
+    $$->table_name = $3;
+    $$->where_case = $4;
+}
+;
 
 update_stmt: UPDATE IDENTIFIER SET update_list where_clause
             {
-                printf_red("Update table with values\n");
+                $$ = new UpdateRecord;
+                char* table_name = $2;
+                $$->table_name = table_name;
+                $$->update_map_wrap = $4;
+                // std::cout << $$->update_map.size() << std::endl;
+                // auto it = $$->update_map.begin();
+                // std::cout << it->first << ":" << (it->second).intvalue
+                //     << std::endl;
+                $$->where_case = $5;
+                // printf_red("Update table with values\n");
             }
             ;
 
 update_list: IDENTIFIER EQUAL term
-           | update_list COMMA IDENTIFIER EQUAL term
-           ;
+{
+    UpdateMap* update_map_wrap = new UpdateMap;
+
+    TmpValue* tmp = new TmpValue;
+    tmp->type = $3->type;
+    tmp->strvalue = $3->strval;
+    tmp->intvalue = $3->intval;
+
+    std::map<std::string, TmpValue> update_map;
+    std::string field_name($1);
+    update_map[field_name] = *tmp;
+    update_map_wrap->update_map = update_map;
+    $$ = update_map_wrap;
+}
+| update_list COMMA IDENTIFIER EQUAL term
+{
+    TmpValue* tmp = new TmpValue;
+    tmp->type = $5->type;
+    tmp->strvalue = $5->strval;
+    tmp->intvalue = $5->intval;
+
+    UpdateMap* update_map_wrap = $1;
+    auto& update_map = update_map_wrap->update_map;
+    std::string field_name($3);
+    update_map[field_name] = *tmp;
+    update_map_wrap->update_map = update_map;
+    $$ = update_map_wrap;
+}
+;
 
 %%
 void create_db(char* dbname)
@@ -529,6 +679,7 @@ void show_db() {
         printf("%s", line);
     }
 
+    printf("\n");
     // 关闭文件
     fclose(file);
 }
@@ -554,14 +705,6 @@ void use_db(char* dbname) {
 
     printf("Database %s does not exist\n", dbname);
     fclose(file);
-}
-
-int check_use_db() {
-    if (session.db == NULL) {
-        printf("have not use database\n");
-        return 0;
-    }
-    return 1;
 }
 
 void do_create_table(struct CreateTable* create_table_ctx) {
@@ -825,7 +968,7 @@ void insert_rows(InsertRecord* insert_record) {
                     Expr* expr = temp_value_list->expr;
 
                     // 检查表达式的类型并进行相应处理
-                    if (expr->type == 0) { // char 类型
+                    if (expr->type == 0) { // CHAR 类型
                         // 截断字符串，确保长度不超过定义的字段长度
                         if (strlen(expr->strval) > length) {
                             expr->strval[length] = '\0';
@@ -833,7 +976,7 @@ void insert_rows(InsertRecord* insert_record) {
 
                         // 写入到表数据文件中
                         fprintf(table_data_file, "%s ", expr->strval);
-                    } else if (expr->type == 1) { // int 类型
+                    } else if (expr->type == 1) { // INT 类型
                         // 写入到表数据文件中
                         fprintf(table_data_file, "%d ", expr->intval);
                     }
@@ -853,7 +996,6 @@ void insert_rows(InsertRecord* insert_record) {
     printf("insert into %s success\n", table_name);
 }
 
-
 int main()
 {
     session.db = NULL;
@@ -861,8 +1003,7 @@ int main()
 	return 0;
 }
 
-int yyerror(const char *s, ...)
+void yyerror(const char *s)
 {
     printf_red(s);
-    return -1;
 }
